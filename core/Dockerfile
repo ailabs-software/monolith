@@ -27,10 +27,14 @@ RUN wget --tries=5 https://storage.googleapis.com/dart-archive/channels/stable/r
 COPY src /tmp/src
 COPY --from=common . /tmp/src/common/
 
+# build our custom chroot
+WORKDIR /tmp/src/chroot
+RUN gcc -Wall -Wextra -g -o "$CORE_PATH/bin/monolith_chroot" main.c
+
 # build fuse file system driver (c)
 WORKDIR /tmp/src/file_system/lib/driver
-
 RUN gcc -Wall monolith_fs_driver.c request.c cjson/cJSON.c `pkg-config fuse3 --cflags --libs` -o "$CORE_PATH/bin/monolith_fs_driver"
+
 
 # build core's file system
 WORKDIR /tmp/src/file_system/

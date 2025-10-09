@@ -35,7 +35,7 @@ class ExecuteAs
     CommandLine commandLine = await executable.resolveExecutable(originalCommandLine, environment);
 
     return Process.start(
-      "/usr/sbin/monolithic_chroot",
+      "/opt/monolith/core/bin/monolith_chroot",
       <String>[_getMountPointFromPrivilegeLevel(privilege), workingDirectory, commandLine.command, ...commandLine.arguments],
       environment: environment,
       workingDirectory: workingDirectory
