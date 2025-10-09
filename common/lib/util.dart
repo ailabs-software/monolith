@@ -33,8 +33,9 @@ String safeJoinPaths(String base, String path)
   }
   // Remove any absolute property from dir by making it relative
   String relativeDir = path_util.relative(path, from: path_util.rootPrefix(path) );
-  String fullPath = path_util.join(base, relativeDir);
-  if ( !path_util.isWithin(base, fullPath) ) {
+  String fullPath = path_util.normalize( path_util.join(base, relativeDir) );
+  if ( !( path_util.isWithin(base, fullPath) ||
+          path_util.equals(base, fullPath)  ) ) {
     throw new Exception("monolith: Illegal path after join");
   }
   return fullPath;
