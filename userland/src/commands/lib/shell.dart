@@ -5,6 +5,18 @@ import "package:common/monolith_exception.dart";
 import "package:common/executable.dart";
 import "package:common/user_execution_client.dart";
 
+class _ShellResponse
+{
+  final String output;
+
+  final Map<String, String> environment;
+
+  _ShellResponse({
+    required String this.output,
+    required Map<String, String> this.environment
+  });
+}
+
 CommandLine _parseCommandString(String commandString)
 {
   // TODO handle shell escaping
@@ -15,38 +27,35 @@ CommandLine _parseCommandString(String commandString)
   );
 }
 
-Future<void> _writeResponse(String output, Map<String, String> environment) async
+Future<_ShellResponse> _init() async
 {
-  stdout.write(
-    json.encode({
-      "output": output,
-      "environment": environment
-    })
+  return new _ShellResponse(
+    output: "\$ ",
+    environment: Platform.environment
   );
-  await stdout.flush();
 }
 
-Future<void> _writeShellPrompt() async
-{
-  _writeResponse("\$ ", Platform.environment);
-}
-
-Future<void> _changeDirectory(String directory) async
+Future<_ShellResponse> _changeDirectory(String directory) async
 {
   String current = Platform.environment["CWD"]!;
   String newDirectory = path_util.normalize( path_util.join(current, directory) );
   if ( !await new Directory(newDirectory).exists() ) {
-    await _writeResponse("No such directory: ${newDirectory}", Platform.environment);
-    return;
+    return new _ShellResponse(
+      output: "No such directory: ${newDirectory}",
+      environment: Platform.environment
+    );
   }
-  Map<String, String> environment = {
-    ...Platform.environment,
-    "CWD": newDirectory
-  };
-  await _writeResponse("", environment);
+  return new _ShellResponse(
+    output: "",
+    environment: {
+      ...Platform.environment,
+      // replace the CWD in the current environment
+      "CWD": newDirectory
+    }
+  );
 }
 
-Future<void> _executeFile(CommandLine commandLine) async
+Future<_ShellResponse> _executeFile(CommandLine commandLine) async
 {
   try {
     // execute command line
@@ -67,41 +76,59 @@ Future<void> _executeFile(CommandLine commandLine) async
     if (result.exitCode != 0) {
       sb.writeln("[${commandLine.command}: exited with code ${result.exitCode}]");
     }
-    _writeResponse(sb.toString(), Platform.environment);
+    return new _ShellResponse(
+      output: sb.toString(),
+      environment: Platform.environment
+    );
   }
   catch (e) {
-    _writeResponse(e.toString(), Platform.environment);
+    return new _ShellResponse(
+      output: e.toString(),
+      environment: Platform.environment
+    );
   }
 }
 
-Future<void> _execute(String commandString) async
+Future<_ShellResponse> _execute(String commandString)
 {
   // parse command line
   CommandLine commandLine = _parseCommandString(commandString);
   switch (commandLine.command)
   {
     case "cd":
-      _changeDirectory(commandLine.arguments.first);
-      break;
+      return _changeDirectory(commandLine.arguments.first);
     default:
-      _executeFile(commandLine);
-      break;
+      return _executeFile(commandLine);
   }
 }
 
-Future<void> main(List<String> arguments) async
+Future<_ShellResponse> _run(List<String> arguments) async
 {
   String action = arguments[0];
   switch (action)
   {
     case "init":
-      await _writeShellPrompt();
-      break;
+      return await _init();
     case "execute":
-      await _execute(arguments[1]);
-      break;
+      return await _execute(arguments[1]);
     default:
-      await _writeResponse("shell.aot: Bad action type.", Platform.environment);
-      break;
+      return new _ShellResponse(
+        output: "shell.aot: Bad action type.",
+        environment: Platform.environment
+      );
   }
+}
+
+Future<void> main(List<String> arguments) async
+{
+  _ShellResponse response = await _run(arguments);
+  stdout.write(
+    json.encode({
+      // return the output of the shell execution
+      "output": response.output,
+      // return the environment with mutations we performed to it
+      "environment": response.environment
+    })
+  );
+  await stdout.flush();
 }
