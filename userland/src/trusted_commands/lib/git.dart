@@ -4,37 +4,74 @@ import "dart:io";
 
 final String _GIT_SECRET_ACCESS = "";
 
-Future<void> _handleCommand(String command, List<String> arguments) async
+enum _GitCommands
 {
-  ProcessResult result = await Process.run("/usr/bin/git", [command, ...arguments]);
-  stdout.write(result.stdout);
-  await stdout.flush();
-  stderr.write(result.stderr);
-  await stderr.flush();
-  exit(result.exitCode);
+  branch("branch"),
+  checkout("checkout"),
+  switchCmd("switch"),
+  push("push"),
+  pull("pull"),
+  diff("diff"),
+  stats("stats"),
+  add("add");
+
+  final String command;
+
+  const _GitCommands(String this.command);
 }
 
-Future<void> main(List<String> arguments) async
+class _GitWrapper
 {
-  if (arguments.isEmpty) {
-    stderr.writeln("Missing a git command argument.");
-    await stderr.flush();
+  final _GitCommands gitCommand;
+
+  _GitWrapper(_GitCommands this.gitCommand);
+
+  Future<void> parse(List<String> args) async
+  {
+    final String token = await _readGitToken();
+
+    await _runGitCommand(token, args);
+  }
+
+  Future<String> _readGitToken() async
+  {
+    final File file = File("git.txt");
+    if (! await file.exists()) {
+      print("git.txt does not exist");
+      exit(3);
+    }
+    final String token = await file.readAsString();
+    return token.trim();
+  }
+
+  Future<void> _runGitCommand(String token, [List<String> args = const []]) async
+  {
+    final List<String> fullCommand = [gitCommand.command, ...args];
+
+    final ProcessResult result = await Process.run(
+      "sh",
+      ["-c", "GIT_ASKPASS=echo GIT_TERMINAL_PROMPT=0 git ${fullCommand.join(' ')}"],
+      environment: {"GITHUB_TOKEN": token}
+    );
+
+    print(result.stdout);
+    if (result.exitCode != 0) {
+      print("Error: ${result.stderr}");
+    }
+  }
+}
+
+void main(List<String> args) async
+{
+  final String? commandName = args.firstOrNull;
+  if (commandName == null) {
+    print("Not command name provided");
     exit(1);
   }
-  String command = arguments[0];
-  switch (command)
-  {
-    case "clone":
-      Uri uri = Uri.parse(arguments[1]);
-      uri = uri.replace(userInfo: _GIT_SECRET_ACCESS);
-      return _handleCommand("clone", [uri.toString()]);
-    case "diff":
-      return _handleCommand("diff", const []);
-    case "status":
-      return _handleCommand("status", const []);
-    default:
-      stderr.writeln("Unrecognised git command ${command}.");
-      await stderr.flush();
-      exit(1);
+  _GitCommands? command = _GitCommands.values.where((_GitCommands c) => c.command == commandName).firstOrNull;
+  if (command == null) {
+    print("Command \"${commandName}\" not covered by this wrapper");
+    exit(2);
   }
+  await new _GitWrapper(command).parse(args.sublist(1));
 }
