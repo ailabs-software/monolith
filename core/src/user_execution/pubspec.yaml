@@ -1,0 +1,14 @@
+name: user_execution
+description: User execution for Monolith. Resolves authStrings to users. Runs commands at the proper privilege level for the given user.
+version: 1.0.0
+
+environment:
+  sdk: '>=3.1.0 <4.0.0'
+
+dependencies:
+  meta: ^1.7.0
+  mutex: ^3.0.0
+  path: ^1.8.0
+  mime: ^1.0.4
+  common:
+    path: ../common

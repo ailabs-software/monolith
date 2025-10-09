@@ -1,0 +1,7 @@
+
+Running the Monolith container requires a bit of configuration of the host
+not normally required by a Docker container:
+
+brew install --cask macfuse
+
+Fuse is used to enable file system level source code access protection.

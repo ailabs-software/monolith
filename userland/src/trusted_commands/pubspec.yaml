@@ -1,0 +1,11 @@
+name: trusted_commands
+description: Trusted commands for Monolith
+version: 1.0.0
+
+environment:
+  sdk: '>=3.1.0 <4.0.0'
+
+dependencies:
+  meta: ^1.7.0
+  common:
+    path: ../common

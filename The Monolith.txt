@@ -1,0 +1,81 @@
+== The Monolith ==
+
+A source code directory management system --
+  A directory structure shadows (prototypical inheritance) a Master Directory Structure.
+  When a file exists in the _working_ directory, it overrides the file in the master directory structure.
+
+dartaotruntime is used to execute the compiled application after building.
+
+Dart pub does not exist & is not supported.
+All source code used must exist either in Master Directory, Vendor Directory or Working Directory (shadow)
+-- directories (which are repos) are configured in the Monolith Server:
+   [
+     "vendor@3.1", -- everything we import from third-name, reads git tags
+     "master@4.0,
+     "working"
+   ]
+
+Updating dependencies to current dart pub is supported.
+
+Create private repo: monolith
+
+stack:
+1. Dockerfile build alpine linux + glibc
+2. build stage: -- from https://github.com/dart-lang/sdk/blob/main/docs/Building.md#source
+  a) install python-3
+  b) git clone depot_tools
+  c) install depot_tools into the build stage
+  d) mkdir dart-sdk, cd dart-sdk, fetch dart
+  e) cd sdk, ./tools/build.py --mode release create_sdk  -- ./tools/build.py runtime
+  f) copy out/ReleaseX64/dart-sdk into final stage
+
+-- at this point, we have our base -- a Docker image with a custom built dart sdk we can hack --
+
+The ability to read a local directory into the server,
+syncing changes.
+
+RPC used to generate token modules when checking out a mission
+
+Mission Check Out -- creates a repo for the mission, can also add new source units to the mission
+Mission Check In -- adds code back into master repo, git merge
+
+_ Support for shadow directories is baked into Dart CompilationUnitHandler
+_ Access via dart:io File/Directory is prevented by
+  running the built binary (dartaotruntime) inside a chroot jail.
+
+_ build -- executes the build from local file system
+   1. read in working directory, POST to server all source
+   2. execute & run the build against master directory to provide missing paths
+
+== The Monolith: Phase II ==
+Run VS Code with Dart syntax highlighting + autocomplete
+Ellaments runs as well on .ellaments files
+
+implement this: https://code.visualstudio.com/api/references/vscode-api#FileSystemProvider 
+ -- if file read is in Master Directory, but not Working Directory, it will be read as an opaque interface
+ -- dart analysis server has access to working directory via cache
+
+-- views of the source are created & given to developers
+
+ COMPONENTS IN THE monolith repo:
+ 1. dart sdk build
+ 2. monolith_server -- FileSystemService directory shadow -- compiled & run as pid 1 in Dockerfile
+      monolith.json load into image at runtime:
+        {
+          "shadow_directories": [
+            {"id": "master", src": "git://github.com/ailabs-software/master", "access": false},  // Monolith will read these with caching
+            {"id": "vendored", "src": "git://github.com/ailabs-software/vendored", "access": true}
+            {"id": "local", "src": "local://", "access": true}
+          ],
+          "build_targets": [
+            {"name": "shopwindow_server", "main": "applications/shopwindow/lib/server/ShopwindowServer.dart"}
+          ]
+        }
+ 3. vscode w/ trusted FileSystemProvider
+ 4. a command line to execute the following commands
+    $ refresh master
+    $ build 
+
+
+
+    

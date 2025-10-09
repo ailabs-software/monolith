@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="JAVA_MODULE" version="4">
+  <component name="NewModuleRootManager" inherit-compiler-output="true">
+    <exclude-output />
+    <content url="file://$MODULE_DIR$">
+      <excludeFolder url="file://$MODULE_DIR$/common/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/common/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/common/build" />
+      <excludeFolder url="file://$MODULE_DIR$/core/src/file_system/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/core/src/file_system/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/core/src/file_system/build" />
+      <excludeFolder url="file://$MODULE_DIR$/core/src/file_system/lib/driver/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/core/src/file_system/lib/driver/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/core/src/file_system/lib/driver/build" />
+      <excludeFolder url="file://$MODULE_DIR$/core/src/user_execution/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/core/src/user_execution/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/core/src/user_execution/build" />
+      <excludeFolder url="file://$MODULE_DIR$/userland/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/userland/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/userland/build" />
+      <excludeFolder url="file://$MODULE_DIR$/userland/src/commands/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/userland/src/commands/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/userland/src/commands/build" />
+      <excludeFolder url="file://$MODULE_DIR$/userland/src/commands/lib/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/userland/src/commands/lib/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/userland/src/commands/lib/build" />
+      <excludeFolder url="file://$MODULE_DIR$/userland/src/frames/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/userland/src/frames/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/userland/src/frames/build" />
+      <excludeFolder url="file://$MODULE_DIR$/userland/src/trusted_commands/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/userland/src/trusted_commands/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/userland/src/trusted_commands/build" />
+    </content>
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="library" name="Dart SDK" level="project" />
+    <orderEntry type="library" name="Dart Packages" level="project" />
+  </component>
+</module>

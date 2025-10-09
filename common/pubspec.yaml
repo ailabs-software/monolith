@@ -1,0 +1,13 @@
+name: common
+description: Common types & helpers for both Monolith core & userland
+version: 1.0.0
+
+environment:
+  sdk: '>=3.1.0 <4.0.0'
+
+dependencies:
+  meta: ^1.7.0
+  mutex: ^3.0.0
+  path: ^1.8.0
+  glob: ^2.1.3
+
