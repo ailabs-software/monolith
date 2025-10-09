@@ -82,14 +82,14 @@ void handleParentProcess(pid_t pid, char*** cmd_args)
     
     if (WIFEXITED(status)) {
         int exit_code = WEXITSTATUS(status);
-        printf("Command exited with status: %d\n", exit_code);
+//        printf("Command exited with status: %d\n", exit_code);
         exit(exit_code);
     } else if (WIFSIGNALED(status)) {
         int signal = WTERMSIG(status);
-        printf("Command terminated by signal: %d\n", signal);
+//        printf("Command terminated by signal: %d\n", signal);
         exit(128 + signal);
     } else {
-        printf("Command terminated abnormally\n");
+//        printf("Command terminated abnormally\n");
         exit(1);
     }
 }
@@ -118,15 +118,15 @@ int main(int argc, char *argv[]) {
     }
     cmd_args[argc - 3] = NULL;
     
-    printf("Custom chroot execution:\n");
-    printf("  Root path: %s\n", chroot_path);
-    printf("  Working dir: %s\n", working_dir);
-    printf("  Command: %s\n", command);
-    printf("  Arguments: ");
-    for (int i = 4; i < argc; i++) {
-        printf("   - %s ", argv[i]);
-    }
-    printf("\n\n");
+//    printf("Custom chroot execution:\n");
+//    printf("  Root path: %s\n", chroot_path);
+//    printf("  Working dir: %s\n", working_dir);
+//    printf("  Command: %s\n", command);
+//    printf("  Arguments: ");
+//    for (int i = 4; i < argc; i++) {
+//        printf("   - %s ", argv[i]);
+//    }
+//    printf("\n\n");
     pid_t pid = fork();
     
     if (pid == -1) {
