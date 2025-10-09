@@ -34,7 +34,7 @@ Future<void> _writeShellPrompt() async
 Future<void> _changeDirectory(String directory) async
 {
   String current = Platform.environment["CWD"]!;
-  String newDirectory = path_util.join(current, directory);
+  String newDirectory = path_util.normalize( path_util.join(current, directory) );
   if ( !await new Directory(newDirectory).exists() ) {
     await _writeResponse("No such directory: ${newDirectory}", Platform.environment);
     return;
