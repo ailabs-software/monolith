@@ -61,6 +61,9 @@ class _GitWrapper
       return path == null ? arg : "https://${token}@github.com/${path}";
     }).toList();
 
+    final String userCwd = Platform.environment["CWD"] ?? "/";
+    final String actualCwd = "/opt/monolith/userland$userCwd";
+
     final ProcessResult result = await Process.run(
       "git",
       [gitCommand.command, ...transformedArgs],
@@ -70,7 +73,7 @@ class _GitWrapper
         "GIT_TERMINAL_PROMPT": "0",
         "GITHUB_TOKEN": token
       },
-      workingDirectory: "/",
+      workingDirectory: actualCwd,
     );
 
     print(result.stdout);
