@@ -58,7 +58,15 @@ class Executable
     if ( path_util.isAbsolute(command) ) {
       pathList = const [];
     }
-    for (String basePath in ["/", ...pathList])
+    
+    final String? cwd = environment["CWD"];
+    final List<String> searchPaths = [
+      if (cwd != null && command.startsWith("./")) cwd,
+      "/",
+      ...pathList
+    ];
+    
+    for (String basePath in searchPaths)
     {
       String fullPath = safeJoinPaths(basePath, command);
       for (String fullPathWithExtension in _getFullPathWithExtensions(fullPath) )
