@@ -13,7 +13,8 @@ enum _GitCommands
   pull("pull"),
   diff("diff"),
   stats("stats"),
-  add("add");
+  add("add"),
+  clone("clone");
 
   final String command;
 
@@ -35,7 +36,7 @@ class _GitWrapper
 
   Future<String> _readGitToken() async
   {
-    final File file = File("git.txt");
+    final File file = File("/opt/monolith/secrets/git.txt");
     if (! await file.exists()) {
       print("git.txt does not exist");
       exit(3);
@@ -46,12 +47,33 @@ class _GitWrapper
 
   Future<void> _runGitCommand(String token, [List<String> args = const []]) async
   {
-    final List<String> fullCommand = [gitCommand.command, ...args];
+    const String gitUrlPrefix = "https://github.com/";
+    const String gitSshPrefix = "git@github.com:";
+
+    final List<String> transformedArgs = args.map((arg) {
+      String? path;
+      if (arg.startsWith(gitSshPrefix)) {
+        path = arg.substring(gitSshPrefix.length);
+      }
+      if (arg.startsWith(gitUrlPrefix)) {
+        path = arg.substring(gitUrlPrefix.length);
+      }
+      return path == null ? arg : "https://${token}@github.com/${path}";
+    }).toList();
+
+    final String userCwd = Platform.environment["CWD"] ?? "/";
+    final String actualCwd = "/opt/monolith/userland$userCwd";
 
     final ProcessResult result = await Process.run(
-      "sh",
-      ["-c", "GIT_ASKPASS=echo GIT_TERMINAL_PROMPT=0 git ${fullCommand.join(' ')}"],
-      environment: {"GITHUB_TOKEN": token}
+      "git",
+      [gitCommand.command, ...transformedArgs],
+      environment: {
+        ...Platform.environment,
+        "GIT_ASKPASS": "echo",
+        "GIT_TERMINAL_PROMPT": "0",
+        "GITHUB_TOKEN": token
+      },
+      workingDirectory: actualCwd,
     );
 
     print(result.stdout);

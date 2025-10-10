@@ -32,7 +32,7 @@ class ExecuteAs
         commandLine.arguments,
         environment: {
           ...environment,
-          "PATH": chrootPath.isEmpty ? systemPath : "$systemPath:$chrootPath"
+          "PATH": chrootPath.isEmpty ? systemPath : "${systemPath}:${chrootPath}"
         },
         workingDirectory: "/"
       );
