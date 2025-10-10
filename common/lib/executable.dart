@@ -55,13 +55,14 @@ class Executable
   Future<String> resolveExecutablePath(String command, Map<String, String> environment) async
   {
     List<String> pathList = _getPathList(environment);
-    if ( path_util.isAbsolute(command) ) {
+    final bool isRelative = command.startsWith("./");
+    if ( path_util.isAbsolute(command) || isRelative ) {
       pathList = const [];
     }
     
     final String? cwd = environment["CWD"];
     final List<String> searchPaths = [
-      if (cwd != null && command.startsWith("./")) cwd,
+      if (cwd != null && isRelative) cwd,
       "/",
       ...pathList
     ];
