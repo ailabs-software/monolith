@@ -38,7 +38,7 @@ class ExecuteAs
       "/opt/monolith/core/bin/monolith_chroot",
       <String>[_getMountPointFromPrivilegeLevel(privilege), workingDirectory, commandLine.command, ...commandLine.arguments],
       environment: environment,
-      workingDirectory: workingDirectory
+      workingDirectory: "/"
     );
   }
 
