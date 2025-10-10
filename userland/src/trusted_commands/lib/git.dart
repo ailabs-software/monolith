@@ -47,9 +47,23 @@ class _GitWrapper
 
   Future<void> _runGitCommand(String token, [List<String> args = const []]) async
   {
+    const String gitUrlPrefix = "https://github.com/";
+    const String gitSshPrefix = "git@github.com:";
+
+    final List<String> transformedArgs = args.map((arg) {
+      String? path;
+      if (arg.startsWith(gitSshPrefix)) {
+        path = arg.substring(gitSshPrefix.length);
+      }
+      if (arg.startsWith(gitUrlPrefix)) {
+        path = arg.substring(gitUrlPrefix.length);
+      }
+      return path == null ? arg : "https://${token}@github.com/${path}";
+    }).toList();
+
     final ProcessResult result = await Process.run(
       "git",
-      [gitCommand.command, ...args],
+      [gitCommand.command, ...transformedArgs],
       environment: {
         ...Platform.environment,
         "GIT_ASKPASS": "echo",
