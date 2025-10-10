@@ -23,11 +23,18 @@ class ExecuteAs
       // re-resolve executable within file_system_source_path
       Executable executable = new Executable(rootPath: file_system_source_path, prefixPath: file_system_source_path);
       CommandLine commandLine = await executable.resolveExecutable(originalCommandLine, environment);
+      
+      final String systemPath = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+      final String chrootPath = environment["PATH"] ?? "";
+      
       return Process.start(
         commandLine.command,
         commandLine.arguments,
-        environment: environment,
-        workingDirectory: safeJoinPaths(file_system_source_path, workingDirectory)
+        environment: {
+          ...environment,
+          "PATH": chrootPath.isEmpty ? systemPath : "${systemPath}:${chrootPath}"
+        },
+        workingDirectory: "/"
       );
     }
 
