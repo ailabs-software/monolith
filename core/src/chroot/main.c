@@ -7,6 +7,14 @@
 #include <errno.h>
 #include <limits.h>
 
+#define DEBUG 0
+
+#if defined(DEBUG) && DEBUG == 1
+    #define dprint(fmt, ...) fprintf(stderr, "DEBUG: " fmt "\n", ##__VA_ARGS__)
+#else
+    #define dprint(fmt, ...) ((void)0)
+#endif
+
 /*
  * This is a custom chroot command that takes:
  * 1. chroot_path - the new root directory
@@ -44,22 +52,29 @@ void cleanup(char ***cmd_args, int exit_code)
 */
 void handleChildProcess(char ***cmd_args, const char* chroot_path, const char* working_dir, const char* command)
 {
-    // Step 1: Change to the chroot directory first (security best practice)
+    dprint("Using chdir(%s)", chroot_path);
     if (chdir(chroot_path) != 0) {
         perror("chdir to chroot path");
         cleanup(cmd_args, 1);
     }
     
+    dprint("Using chroot(%s)", chroot_path);
     if (chroot(chroot_path) != 0) {
         perror("chroot");
         cleanup(cmd_args, 1);
     }
     
+    dprint("Using chdir(%s)", working_dir);
     if (chdir(working_dir) != 0) {
         perror("chdir to working directory");
         cleanup(cmd_args, 1);
     }
     
+    dprint("Using execvp:");
+    dprint("  - Path: %s", command);
+    for (int i = 0; (*cmd_args)[i] != NULL; i++) {
+        dprint("  - arg[%d]: %s", i, (*cmd_args)[i]);
+    }
     if (execvp(command, *cmd_args) == -1) {
         perror("execvp");
         cleanup(cmd_args, 1);
@@ -82,14 +97,14 @@ void handleParentProcess(pid_t pid, char*** cmd_args)
     
     if (WIFEXITED(status)) {
         int exit_code = WEXITSTATUS(status);
-//        printf("Command exited with status: %d\n", exit_code);
+        dprint("Command exited with status: %d\n", exit_code);
         exit(exit_code);
     } else if (WIFSIGNALED(status)) {
         int signal = WTERMSIG(status);
-//        printf("Command terminated by signal: %d\n", signal);
+        dprint("Command terminated by signal: %d\n", signal);
         exit(128 + signal);
     } else {
-//        printf("Command terminated abnormally\n");
+        dprint("Command terminated abnormally\n");
         exit(1);
     }
 }
@@ -118,15 +133,15 @@ int main(int argc, char *argv[]) {
     }
     cmd_args[argc - 3] = NULL;
     
-//    printf("Custom chroot execution:\n");
-//    printf("  Root path: %s\n", chroot_path);
-//    printf("  Working dir: %s\n", working_dir);
-//    printf("  Command: %s\n", command);
-//    printf("  Arguments: ");
-//    for (int i = 4; i < argc; i++) {
-//        printf("   - %s ", argv[i]);
-//    }
-//    printf("\n\n");
+    dprint("Custom chroot execution:\n");
+    dprint("  Root path: %s\n", chroot_path);
+    dprint("  Working dir: %s\n", working_dir);
+    dprint("  Command: %s\n", command);
+    dprint("  Arguments: ");
+    for (int i = 4; i < argc; i++) {
+        dprint("   - %s ", argv[i]);
+    }
+    dprint("\n\n");
     pid_t pid = fork();
     
     if (pid == -1) {
