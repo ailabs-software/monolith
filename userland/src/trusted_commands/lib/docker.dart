@@ -34,7 +34,7 @@ class _DockerWrapper
     final String actualCwd = "/opt/monolith/userland$userCwd";
 
     final ProcessResult result = await Process.run(
-      "docker",
+      "/usr/bin/docker",
       [dockerCommand.command, ...args],
       environment: {
         ...Platform.environment,
