@@ -46,6 +46,35 @@ async function handleEnter(event)
   event.preventDefault();
 }
 
+async function handleTab()
+{
+  let completion = await doCompletion(consoleContentWorking);
+  if (!completion || completion.trim() === "") {
+    console.log("no completion", completion);
+    return; // No completions
+  }
+  
+  let completionList = completion.split("\n").filter(c => c.trim());
+
+  if (completionList.length === 1) {
+    console.log("one completion", completionList);
+    // Single match, complete it by replacing the last word
+    let parts = consoleContentWorking.trim().split(" ");
+    parts[parts.length - 1] = completionList[0];
+    consoleContentWorking = parts.join(" ");
+    updateDisplay();
+  }
+  else if (completionList.length > 1) {
+    console.log("multiple completion", completionList);
+    // Multiple matches, show them as output
+    let savedInput = consoleContentWorking;
+    finalise();
+    consoleContentFinal += "\n" + completion + "\n";
+    consoleContentWorking = savedInput;
+    updateDisplay();
+  }
+}
+
 async function handleKeyDown(event)
 {
   // Handle printable characters & spaces
@@ -73,6 +102,13 @@ async function handleKeyDown(event)
   // Handle Enter
   else if (event.keyCode === 13) {
     handleEnter(event);
+  }
+
+  // Handle Tab
+  else if (event.keyCode === 9) {
+    await handleTab(event);
+    updateDisplay();
+    event.preventDefault();
   }
 }
 
