@@ -37,13 +37,6 @@ class _GitWrapper
   Future<String> _readGitToken() async
   {
     return _GIT_SECRET_ACCESS;
-    final File file = File("/opt/monolith/secrets/git.txt");
-    if (! await file.exists()) {
-      print("git.txt does not exist");
-      exit(3);
-    }
-    final String token = await file.readAsString();
-    return token.trim();
   }
 
   Future<void> _runGitCommand(String token, [List<String> args = const []]) async
