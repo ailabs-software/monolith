@@ -52,26 +52,31 @@ class _UserExecutionService
     ];
     // Get environment from query string
     Map<String, String> environment = request.uri.queryParameters;
+    
     // Execute command as this user
     Process process = await ExecuteAs.executeAsUser(authString, new CommandLine(command: path, arguments: arguments), environment);
 
-    // Collect stdout and stderr
-    String stdout = await process.stdout.transform(utf8.decoder).join();
-    String stderr = await process.stderr.transform(utf8.decoder).join();
-    
-    // Wait for process to complete and get exit code
-    int exitCode = await process.exitCode;
-    
-    // Create JSON response
-    Map<String, Object?> response = {
-      "stdout": stdout,
-      "stderr": stderr,
-      "exit_code": exitCode
-    };
-    
-    // Send JSON response
+    // Set up chunked transfer encoding for streaming output
     request.response.headers.contentType = ContentType.json;
-    request.response.write(jsonEncode(response));
+    request.response.headers.set("Cache-Control", "no-cache");
+    request.response.headers.set("Transfer-Encoding", "chunked");
+    
+    // Stream stdout chunks as they arrive
+    Future<void> stdoutDone = process.stdout.transform(utf8.decoder).forEach((String data) {
+      String chunk = jsonEncode({"stdout": data}) + "\n";
+      request.response.write(chunk);
+    });
+    
+    // Stream stderr chunks as they arrive
+    Future<void> stderrDone = process.stderr.transform(utf8.decoder).forEach((String data) {
+      String chunk = jsonEncode({"stderr": data}) + "\n";
+      request.response.write(chunk);
+    });
+    
+    // Wait for both streams and process to complete
+    await Future.wait([stdoutDone, stderrDone]);
+    final int exitCode = await process.exitCode;
+    request.response.write( jsonEncode({"exit_code": exitCode}) + "\n" );
   }
 
   Future<void> _routeRequest(HttpRequest request, String authString) async

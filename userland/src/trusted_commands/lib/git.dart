@@ -65,7 +65,7 @@ class _GitWrapper
     final String userCwd = Platform.environment["CWD"] ?? "/";
     final String actualCwd = "/opt/monolith/userland$userCwd";
 
-    final ProcessResult result = await Process.run(
+    final Process process = await Process.start(
       "/usr/bin/git",
       [gitCommand.command, ...transformedArgs],
       environment: {
@@ -77,9 +77,19 @@ class _GitWrapper
       workingDirectory: actualCwd,
     );
 
-    print(result.stdout);
-    if (result.exitCode != 0) {
-      print("Error: ${result.stderr}");
+    // Stream stdout
+    process.stdout.listen((data) {
+      stdout.add(data);
+    });
+
+    // Stream stderr
+    process.stderr.listen((data) {
+      stderr.add(data);
+    });
+
+    final int exitCode = await process.exitCode;
+    if (exitCode != 0) {
+      exit(exitCode);
     }
   }
 }

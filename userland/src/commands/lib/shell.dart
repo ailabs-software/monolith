@@ -55,80 +55,62 @@ Future<_ShellResponse> _changeDirectory(String directory) async
   );
 }
 
-Future<_ShellResponse> _executeFile(CommandLine commandLine) async
+Future<void> _executeFileStreaming(CommandLine commandLine) async
 {
   try {
-    // execute command line
     String? authString = Platform.environment["AUTH_STRING"];
     if (authString == null) {
       throw new Exception("shell.aot: Missing AUTH_STRING.");
     }
+    
     UserExecutionClient client = new UserExecutionClient(authString: authString);
-    ProcessResult result = await client.execute(commandLine, Platform.environment);
-    // pass through command output
-    StringBuffer sb = new StringBuffer();
-    sb.writeln(result.stdout.toString().trimRight());
-    String stderr = result.stderr.toString();
-    if (stderr.isNotEmpty) {
-      sb.writeln("[${commandLine.command} error]");
-      sb.writeln(stderr.trimRight());
-    }
-    if (result.exitCode != 0) {
-      sb.writeln("[${commandLine.command}: exited with code ${result.exitCode}]");
-    }
-    return new _ShellResponse(
-      output: sb.toString(),
-      environment: Platform.environment
+    await client.executeStreaming(
+      commandLine,
+      Platform.environment,
+      onStdout: (String output) {
+        stdout.writeln(json.encode({"output": output, "environment": Platform.environment}));
+      },
+      onStderr: (String output) {
+        stdout.writeln(json.encode({"output": output, "environment": Platform.environment}));
+      }
     );
-  }
-  catch (e) {
-    return new _ShellResponse(
-      output: e.toString(),
-      environment: Platform.environment
-    );
+  } catch (e) {
+    stdout.write(json.encode({"output": e.toString(), "environment": Platform.environment}));
+    await stdout.flush();
   }
 }
 
-Future<_ShellResponse> _execute(String commandString)
+Future<void> _execute(String commandString) async
 {
   // parse command line
   CommandLine commandLine = _parseCommandString(commandString);
   switch (commandLine.command)
   {
     case "cd":
-      return _changeDirectory(commandLine.arguments.first);
+      _ShellResponse response = await _changeDirectory(commandLine.arguments.first);
+      stdout.write(json.encode({"output": response.output, "environment": response.environment}));
+      await stdout.flush();
+      break;
     default:
-      return _executeFile(commandLine);
-  }
-}
-
-Future<_ShellResponse> _run(List<String> arguments) async
-{
-  String action = arguments[0];
-  switch (action)
-  {
-    case "init":
-      return await _init();
-    case "execute":
-      return await _execute(arguments[1]);
-    default:
-      return new _ShellResponse(
-        output: "shell.aot: Bad action type.",
-        environment: Platform.environment
-      );
+      await _executeFileStreaming(commandLine);
   }
 }
 
 Future<void> main(List<String> arguments) async
 {
-  _ShellResponse response = await _run(arguments);
-  stdout.write(
-    json.encode({
-      // return the output of the shell execution
-      "output": response.output,
-      // return the environment with mutations we performed to it
-      "environment": response.environment
-    })
-  );
-  await stdout.flush();
+  String action = arguments[0];
+  switch (action)
+  {
+    case "init":
+      _ShellResponse response = await _init();
+      stdout.write(json.encode({"output": response.output, "environment": response.environment}));
+      await stdout.flush();
+      break;
+    case "execute":
+      await _execute(arguments[1]);
+      break;
+    default:
+      stdout.write(json.encode({"output": "shell.aot: Bad action type.", "environment": Platform.environment}));
+      await stdout.flush();
+  }
 }

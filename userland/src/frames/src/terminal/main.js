@@ -32,16 +32,24 @@ async function handleEnter(event)
   $print("\n");
   let commandString = consoleContentWorking.trimEnd();
   finalise();
-  let output = await doExecute(commandString);
-  let isClearCommand = output === "\u001b[2J\u001b[H\n";
-  if (isClearCommand) {
-    consoleContentFinal = "";
-    updateDisplay();
-  }
-  else {
-    $print(output);
-    finalise();
-  }
+
+  console.log(`running ${commandString}`);
+  
+  // Execute command through shell with streaming output
+  await doExecute(commandString, (chunk) => {
+    console.log("received chunk", chunk);
+    // Check if this is a clear command (VT100 escape sequence)
+    if (chunk.includes("\u001b[2J\u001b[H")) {
+      consoleContentFinal = "";
+      consoleContentWorking = "";
+      updateDisplay();
+    }
+    else {
+      $print(chunk);
+    }
+  });
+  
+  finalise();
   await runInit();
   event.preventDefault();
 }
