@@ -2,7 +2,7 @@ import "dart:io";
 
 /** @fileoverview Wraps git. Runs in trusted, so outside chroot */
 
-final String _GIT_SECRET_ACCESS = "";
+final String _GIT_SECRET_ACCESS = "put your token here";
 
 enum _GitCommands
 {
@@ -36,6 +36,7 @@ class _GitWrapper
 
   Future<String> _readGitToken() async
   {
+    return _GIT_SECRET_ACCESS;
     final File file = File("/opt/monolith/secrets/git.txt");
     if (! await file.exists()) {
       print("git.txt does not exist");
@@ -65,7 +66,7 @@ class _GitWrapper
     final String actualCwd = "/opt/monolith/userland$userCwd";
 
     final ProcessResult result = await Process.run(
-      "git",
+      "/usr/bin/git",
       [gitCommand.command, ...transformedArgs],
       environment: {
         ...Platform.environment,
