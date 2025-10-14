@@ -31,7 +31,7 @@ function finalise()
   consoleContentWorking = "";
 }
 
-async function handleEnter(event)
+async function handleEnter()
 {
   $print("\n");
   let commandString = consoleContentWorking.trimEnd();
@@ -55,8 +55,28 @@ async function handleEnter(event)
   // Exit busy mode and replay queued keystrokes
   isBusy = false;
   replayQueuedKeystrokes();
-  
-  event.preventDefault();
+}
+
+async function handleTab()
+{
+  let completionList = await doCompletion(consoleContentWorking);
+  if (completionList.length === 1) {
+    // Single match, complete it by replacing the last word
+    let parts = consoleContentWorking.trim().split(" ");
+    parts[parts.length - 1] = completionList[0];
+    consoleContentWorking = parts.join(" ");
+    updateDisplay();
+  }
+  else if (completionList.length > 1) {
+    // Multiple matches, show them as output
+    let savedInput = consoleContentWorking;
+    finalise();
+    consoleContentFinal += "\n" + completionList.join("\n") + "\n";
+    $print( await doInit() );
+    finalise();
+    consoleContentWorking = savedInput;
+    updateDisplay();
+  }
 }
 
 async function handleKeyDown(event)
@@ -72,28 +92,31 @@ async function handleKeyDown(event)
   if ( (event.key.length === 1 || event.keyCode === 32) &&
        !event.ctrlKey && !event.metaKey) {
     $print(event.key);
-    event.preventDefault();
   }
 
   // Handle backspace
   else if (event.keyCode === 8) {
     consoleContentWorking = consoleContentWorking.slice(0, -1);
-    updateDisplay();
-    event.preventDefault();
-  }
+    updateDisplay();}
 
   // Handle delete
   else if (event.keyCode === 127) {
     // For simplicity, treating Delete like Backspace
     consoleContentWorking = consoleContentWorking.slice(0, -1);
     updateDisplay();
-    event.preventDefault();
   }
 
   // Handle Enter
   else if (event.keyCode === 13) {
-    handleEnter(event);
+    await handleEnter();
   }
+
+  // Handle Tab
+  else if (event.keyCode === 9) {
+    await handleTab();
+  }
+
+  event.preventDefault();
 }
 
 async function handlePaste(event)
@@ -108,19 +131,14 @@ async function handlePaste(event)
   }
 }
 
-terminalElement.addEventListener("keydown", handleKeyDown);
-
-terminalElement.addEventListener("paste", handlePaste);
-
-terminalElement.focus();
-
 function replayQueuedKeystrokes()
 {
   // copy and clear original queue
   const queue = keystrokeQueue.slice();
   keystrokeQueue = [];
   
-  for (const event of queue) {
+  for (const event of queue)
+  {
     // Don't replay Enter keys to avoid recursive command execution
     if (event.keyCode === 13) {
       continue;
@@ -144,5 +162,11 @@ async function runInit()
   $print( await doInit() );
   finalise();
 }
+
+terminalElement.addEventListener("keydown", handleKeyDown);
+
+terminalElement.addEventListener("paste", handlePaste);
+
+terminalElement.focus();
 
 runInit();

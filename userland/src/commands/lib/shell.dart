@@ -102,6 +102,58 @@ Future<_ShellResponse> _execute(String commandString)
   }
 }
 
+Future<Set<String>> _completeNamesFromPaths(List<String> pathDirs, String toComplete) async
+{
+  Set<String> matches = {};
+
+  for (String pathDir in pathDirs)
+  {
+    try {
+      Directory dir = new Directory(pathDir);
+      if (!await dir.exists()) {
+        continue;
+      }
+
+      List<FileSystemEntity> files = await dir.list().toList();
+      for (FileSystemEntity f in files) {
+        final String name = path_util.basename(f.path);
+        if (name.startsWith(toComplete) || toComplete.isEmpty) {
+          matches.add(name);
+        }
+      }
+    }
+    catch (e) {
+      // Skip directories we can't read or that don't exist
+      continue;
+    }
+  }
+
+  return matches;
+}
+
+Future<_ShellResponse> _completion(String input) async
+{
+  // Extract the last word from the input to complete
+  List<String> parts = input.trim().split(new RegExp(r'\s+'));
+  String toComplete = parts.isEmpty ? "" : parts.last;
+  
+  final String pathEnv = Platform.environment["PATH"] ?? "";
+  final List<String> pathDirs = pathEnv.split(":");
+  
+  final Set<String> matches = await _completeNamesFromPaths([
+      Platform.environment["CWD"]!,
+      ...pathDirs
+    ],
+    toComplete
+  );
+  
+  List<String> sortedMatches = matches.toList()..sort();
+  return new _ShellResponse(
+    output: json.encode(sortedMatches),
+    environment: Platform.environment
+  );
+}
+
 Future<_ShellResponse> _run(List<String> arguments) async
 {
   String action = arguments[0];
@@ -111,6 +163,8 @@ Future<_ShellResponse> _run(List<String> arguments) async
       return await _init();
     case "execute":
       return await _execute(arguments[1]);
+    case "completion":
+      return await _completion(arguments.last);
     default:
       return new _ShellResponse(
         output: "shell.aot: Bad action type.",
