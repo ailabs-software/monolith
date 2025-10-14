@@ -145,7 +145,7 @@ class Executable
             matches.add(nameWithoutExt);
           }
         }
-      } catch (e) {
+      } on FileSystemException {
         // skip directories we cant read or that dont exist
         continue;
       }
