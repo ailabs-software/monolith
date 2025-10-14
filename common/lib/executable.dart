@@ -109,4 +109,48 @@ class Executable
         throw new Exception("execute: Unsupported extension: ${extName}");
     }
   }
+
+  Future<List<String>> getExecutablesInPathStartingWith(String text, Map<String, String> environment) async
+  {
+    final Set<String> matches = {};
+    final List<String> pathList = _getPathList(environment);
+    
+    for (final String pathDir in pathList) {
+      try {
+        final Directory dir = new Directory(safeJoinPaths(rootPath, pathDir));
+        if (!await dir.exists()) {
+          continue;
+        }
+
+        final List<FileSystemEntity> files = await dir.list().toList();
+        for (final FileSystemEntity f in files) {
+          final FileStat stat = await f.stat();
+          if (stat.type != FileSystemEntityType.file) {
+            continue; // skip directories
+          }
+
+          final String fileName = path_util.basename(f.path);
+          final String extName = path_util.extension(fileName);
+          
+          // check if it has an executable extension
+          if (!_EXECUTABLE_EXTENSIONS.contains(extName)) {
+            continue;
+          }
+          
+          // get name without extension
+          final String nameWithoutExt = path_util.basenameWithoutExtension(fileName);
+          
+          // check if it matches the prefix
+          if (nameWithoutExt.startsWith(text) || text.isEmpty) {
+            matches.add(nameWithoutExt);
+          }
+        }
+      } catch (e) {
+        // skip directories we cant read or that dont exist
+        continue;
+      }
+    }
+    
+    return matches.toList()..sort();
+  }
 }

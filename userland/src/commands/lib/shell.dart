@@ -123,7 +123,7 @@ Future<Set<String>> _completeNamesFromPaths(List<String> pathDirs, String toComp
       }
     }
     catch (e) {
-      // Skip directories we can't read or that don't exist
+      // skip directories we cant read or that dont exist
       continue;
     }
   }
@@ -133,23 +133,34 @@ Future<Set<String>> _completeNamesFromPaths(List<String> pathDirs, String toComp
 
 Future<_ShellResponse> _completion(String input) async
 {
-  // Extract the last word from the input to complete
-  List<String> parts = input.trim().split(new RegExp(r'\s+'));
+  // extract the last word from the input to complete
+  List<String> parts = input.trim().split(new RegExp(r"\s+"));
   String toComplete = parts.isEmpty ? "" : parts.last;
   
-  final String pathEnv = Platform.environment["PATH"] ?? "";
-  final List<String> pathDirs = pathEnv.split(":");
+  // determine if we are completing a command (first word) or a path (subsequent words)
+  bool isCommandCompletion = parts.length <= 1;
   
-  final Set<String> matches = await _completeNamesFromPaths([
-      Platform.environment["CWD"]!,
-      ...pathDirs
-    ],
-    toComplete
-  );
+  List<String> matches;
   
-  List<String> sortedMatches = matches.toList()..sort();
+  if (isCommandCompletion) {
+    // complete based on executables in PATH
+    Executable executable = new Executable(
+      rootPath: "/",
+      prefixPath: ""
+    );
+    matches = await executable.getExecutablesInPathStartingWith(toComplete, Platform.environment);
+  }
+  else {
+    // complete based on files and directories in CWD only
+    final Set<String> matchSet = await _completeNamesFromPaths(
+      [Platform.environment["CWD"]!],
+      toComplete
+    );
+    matches = matchSet.toList()..sort();
+  }
+  
   return new _ShellResponse(
-    output: json.encode(sortedMatches),
+    output: json.encode(matches),
     environment: Platform.environment
   );
 }
