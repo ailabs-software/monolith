@@ -27,7 +27,7 @@ function finalise()
   consoleContentWorking = "";
 }
 
-async function handleEnter(event)
+async function handleEnter()
 {
   $print("\n");
   let commandString = consoleContentWorking.trimEnd();
@@ -43,7 +43,6 @@ async function handleEnter(event)
     finalise();
   }
   await runInit();
-  event.preventDefault();
 }
 
 async function handleTab()
@@ -76,34 +75,31 @@ async function handleKeyDown(event)
   if ( (event.key.length === 1 || event.keyCode === 32) &&
        !event.ctrlKey && !event.metaKey) {
     $print(event.key);
-    event.preventDefault();
   }
 
   // Handle backspace
   else if (event.keyCode === 8) {
     consoleContentWorking = consoleContentWorking.slice(0, -1);
-    updateDisplay();
-    event.preventDefault();
-  }
+    updateDisplay();}
 
   // Handle delete
   else if (event.keyCode === 127) {
     // For simplicity, treating Delete like Backspace
     consoleContentWorking = consoleContentWorking.slice(0, -1);
     updateDisplay();
-    event.preventDefault();
   }
 
   // Handle Enter
   else if (event.keyCode === 13) {
-    await handleEnter(event);
+    await handleEnter();
   }
 
   // Handle Tab
   else if (event.keyCode === 9) {
-    await handleTab(event);
-    event.preventDefault();
+    await handleTab();
   }
+
+  event.preventDefault();
 }
 
 async function handlePaste(event)
