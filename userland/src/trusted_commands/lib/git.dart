@@ -1,8 +1,9 @@
 import "dart:io";
+import "package:mutex/mutex.dart";
 
 /** @fileoverview Wraps git. Runs in trusted, so outside chroot */
 
-final String _GIT_SECRET_ACCESS = "put your token here";
+final String _GIT_SECRET_ACCESS = "git token here";
 
 enum _GitCommands
 {
@@ -77,14 +78,18 @@ class _GitWrapper
       workingDirectory: actualCwd,
     );
 
+    Mutex flushMutex = new Mutex();
+
     // Stream stdout
-    process.stdout.listen((data) {
+    process.stdout.listen( (List<int> data) {
       stdout.add(data);
+      flushMutex.protect(stdout.flush);
     });
 
     // Stream stderr
-    process.stderr.listen((data) {
+    process.stderr.listen( (List<int> data) {
       stderr.add(data);
+      flushMutex.protect(stderr.flush);
     });
 
     final int exitCode = await process.exitCode;

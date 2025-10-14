@@ -7,5 +7,6 @@ environment:
 
 dependencies:
   meta: ^1.7.0
+  mutex: ^3.0.0
   common:
     path: ../common

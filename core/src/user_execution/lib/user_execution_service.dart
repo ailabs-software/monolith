@@ -4,6 +4,7 @@ import "package:mime/mime.dart";
 import "package:common/http_request_extension.dart";
 import "package:common/executable.dart";
 import "package:common/constants/user_execution_service_port.dart";
+import "package:mutex/mutex.dart";
 import "package:user_execution/execute_as.dart";
 import "package:user_execution/user_list_accessor.dart";
 
@@ -60,17 +61,21 @@ class _UserExecutionService
     request.response.headers.contentType = ContentType.json;
     request.response.headers.set("Cache-Control", "no-cache");
     request.response.headers.set("Transfer-Encoding", "chunked");
-    
+
+    Mutex flushMutex = new Mutex();
+
     // Stream stdout chunks as they arrive
     Future<void> stdoutDone = process.stdout.transform(utf8.decoder).forEach((String data) {
       String chunk = jsonEncode({"stdout": data}) + "\n";
       request.response.write(chunk);
+      flushMutex.protect(request.response.flush);
     });
     
     // Stream stderr chunks as they arrive
     Future<void> stderrDone = process.stderr.transform(utf8.decoder).forEach((String data) {
       String chunk = jsonEncode({"stderr": data}) + "\n";
       request.response.write(chunk);
+      flushMutex.protect(request.response.flush);
     });
     
     // Wait for both streams and process to complete
@@ -124,8 +129,7 @@ class _UserExecutionService
         request.response.statusCode = HttpStatus.unauthorized;
         request.response.writeln("Invalid or missing required header ${HttpHeaders.authorizationHeader} for user auth string.");
       }
-      await request.response.flush();
-      await request.response.close();
+      await request.response.close(); // close automatically calls flush
     }
     catch (e, s) {
       print("User execution service unhandled exception:");
@@ -135,8 +139,7 @@ class _UserExecutionService
       request.response.statusCode = HttpStatus.badRequest;
       request.response.writeln("User execution service unhandled exception:");
       request.response.writeln(e);
-      await request.response.flush();
-      await request.response.close();
+      await request.response.close(); // close automatically calls flush
     }
   }
 }
