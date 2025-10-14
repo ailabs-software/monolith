@@ -63,17 +63,28 @@ class _GitWrapper
       return path == null ? arg : "https://${token}@github.com/${path}";
     }).toList();
 
+    // Force immediate progress for operations that emit progress (clone/pull/push)
+    final bool isProgressy = gitCommand == _GitCommands.clone || gitCommand == _GitCommands.pull || gitCommand == _GitCommands.push;
+    final List<String> finalArgs = <String>[
+      if (isProgressy) ...["-c", "progress.delay=0"],
+      gitCommand.command,
+      if (isProgressy && !transformedArgs.contains("--progress")) "--progress",
+      ...transformedArgs,
+    ];
+
     final String userCwd = Platform.environment["CWD"] ?? "/";
     final String actualCwd = "/opt/monolith/userland$userCwd";
 
     final Process process = await Process.start(
       "/usr/bin/git",
-      [gitCommand.command, ...transformedArgs],
+      finalArgs,
       environment: {
         ...Platform.environment,
         "GIT_ASKPASS": "echo",
         "GIT_TERMINAL_PROMPT": "0",
-        "GITHUB_TOKEN": token
+        "GITHUB_TOKEN": token,
+        // Flush progress immediately
+        "GIT_FLUSH": "1",
       },
       workingDirectory: actualCwd,
     );
