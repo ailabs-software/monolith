@@ -48,33 +48,26 @@ async function handleEnter(event)
 
 async function handleTab()
 {
-  let completion = await doCompletion(consoleContentWorking);
-  if (!completion || completion.trim() === "") {
-    console.log("no completion", completion);
-    return; // No completions
-  }
-  
-  let completionList = completion.split("\n").filter(c => c.trim());
-
+  let completionList = await doCompletion(consoleContentWorking);
   if (completionList.length === 1) {
     console.log("one completion", completionList);
     // Single match, complete it by replacing the last word
     let parts = consoleContentWorking.trim().split(" ");
     parts[parts.length - 1] = completionList[0];
     consoleContentWorking = parts.join(" ");
+    updateDisplay();
   }
   else if (completionList.length > 1) {
     console.log("multiple completion", completionList);
     // Multiple matches, show them as output
     let savedInput = consoleContentWorking;
     finalise();
-    consoleContentFinal += "\n" + completion + "\n";
+    consoleContentFinal += "\n" + completionList.join("\n") + "\n";
     $print( await doInit() );
     finalise();
     consoleContentWorking = savedInput;
+    updateDisplay();
   }
-
-  updateDisplay();
 }
 
 async function handleKeyDown(event)
