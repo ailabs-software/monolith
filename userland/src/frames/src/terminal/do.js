@@ -27,17 +27,30 @@ async function _do(action, parameters, onOutput)
 
       if (line.trim()) {
         const chunk = JSON.parse(line);
-        console.log("Backend chunk:", chunk);
         if (chunk.stdout) {
-          console.log("Shell stdout:", chunk.stdout);
-          // Shell stdout may contain multiple newline-delimited JSON objects
-          const shellLines = chunk.stdout.split('\n').filter(l => l.trim());
+          const shellLines = chunk.stdout.split(/[\r\n]+/).filter(l => l.trim());
           for (const shellLine of shellLines) {
-            const shellOutput = JSON.parse(shellLine);
-            console.log("Parsed shell output:", shellOutput);
-            lastShellOutput = shellOutput;
-            if (onOutput && shellOutput.output) {
-              onOutput(shellOutput.output);
+            try {
+              const shellOutput = JSON.parse(shellLine);
+              lastShellOutput = shellOutput;
+              if (onOutput && shellOutput.output) {
+                onOutput(shellOutput.output);
+              }
+            } catch (_) {
+              if (onOutput) onOutput(shellLine + "\n");
+            }
+          }
+        } else if (chunk.stderr) {
+          const shellLines = chunk.stderr.split(/[\r\n]+/).filter(l => l.trim());
+          for (const shellLine of shellLines) {
+            try {
+              const shellOutput = JSON.parse(shellLine);
+              lastShellOutput = shellOutput;
+              if (onOutput && shellOutput.output) {
+                onOutput(shellOutput.output);
+              }
+            } catch (_) {
+              if (onOutput) onOutput(shellLine + "\n");
             }
           }
         }
