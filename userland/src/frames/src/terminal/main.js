@@ -62,7 +62,6 @@ async function handleTab()
     let parts = consoleContentWorking.trim().split(" ");
     parts[parts.length - 1] = completionList[0];
     consoleContentWorking = parts.join(" ");
-    updateDisplay();
   }
   else if (completionList.length > 1) {
     console.log("multiple completion", completionList);
@@ -70,9 +69,12 @@ async function handleTab()
     let savedInput = consoleContentWorking;
     finalise();
     consoleContentFinal += "\n" + completion + "\n";
+    $print( await doInit() );
+    finalise();
     consoleContentWorking = savedInput;
-    updateDisplay();
   }
+
+  updateDisplay();
 }
 
 async function handleKeyDown(event)
@@ -101,13 +103,12 @@ async function handleKeyDown(event)
 
   // Handle Enter
   else if (event.keyCode === 13) {
-    handleEnter(event);
+    await handleEnter(event);
   }
 
   // Handle Tab
   else if (event.keyCode === 9) {
     await handleTab(event);
-    updateDisplay();
     event.preventDefault();
   }
 }
