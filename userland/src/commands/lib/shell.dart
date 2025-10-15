@@ -168,11 +168,6 @@ Future<_ShellResponse> _completeSingleTokenCommand(_CommandState state) async
   );
 }
 
-_CommandState _getCommandState(String input)
-{
-  return new _CommandState(input);
-}
-
 bool _isCommandASingleToken(_CommandState state)
 {
   return state.tokens.length <= 1 && !state.isTrailing;
@@ -180,7 +175,7 @@ bool _isCommandASingleToken(_CommandState state)
 
 Future<_ShellResponse> _completion(String input) async
 {
-  final _CommandState commandState = _getCommandState(input);
+  final _CommandState commandState = new _CommandState(input);
   // command completion when there is only one token and no trailing space
   if (_isCommandASingleToken(commandState)) {
     return _completeSingleTokenCommand(commandState);
