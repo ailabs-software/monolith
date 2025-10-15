@@ -56,24 +56,6 @@ async function _do(action, parameters, onOutput)
   }
   return "";
 }
-              if (onOutput && shellOutput.output) {
-                onOutput(shellOutput.output);
-              }
-            } catch (_) {
-              if (onOutput) onOutput(shellLine + "\n");
-            }
-          }
-        }
-      }
-    }
-  }
-  
-  if (lastShellOutput) {
-    environment = lastShellOutput.environment;
-    return lastShellOutput.output;
-  }
-  return "";
-}
 
 async function doInit()
 {
