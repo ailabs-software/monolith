@@ -57,26 +57,39 @@ async function handleEnter()
   replayQueuedKeystrokes();
 }
 
+function _completeWithSingleMatch(completionList)
+{
+  // Single match, complete it by replacing the last word
+  let parts = consoleContentWorking.trim().split(" ");
+  parts[parts.length - 1] = completionList[0];
+  consoleContentWorking = parts.join(" ");
+}
+
+async function _completeWithMultipleMatches(completionList)
+{
+  // Multiple matches, show them as output
+  let savedInput = consoleContentWorking;
+  finalise();
+  const displayList = completionList.map(s => {
+    const i = s.lastIndexOf("/");
+    return i >= 0 ? s.substring(i+1) : s;
+  });
+  consoleContentFinal += "\n" + displayList.join("\n") + "\n";
+  $print( await doInit() );
+  finalise();
+  consoleContentWorking = savedInput;
+}
+
 async function handleTab()
 {
   let completionList = await doCompletion(consoleContentWorking);
   if (completionList.length === 1) {
-    // Single match, complete it by replacing the last word
-    let parts = consoleContentWorking.trim().split(" ");
-    parts[parts.length - 1] = completionList[0];
-    consoleContentWorking = parts.join(" ");
-    updateDisplay();
+    _completeWithSingleMatch(completionList);
   }
   else if (completionList.length > 1) {
-    // Multiple matches, show them as output
-    let savedInput = consoleContentWorking;
-    finalise();
-    consoleContentFinal += "\n" + completionList.join("\n") + "\n";
-    $print( await doInit() );
-    finalise();
-    consoleContentWorking = savedInput;
-    updateDisplay();
+    await _completeWithMultipleMatches(completionList);
   }
+  updateDisplay();
 }
 
 async function handleKeyDown(event)

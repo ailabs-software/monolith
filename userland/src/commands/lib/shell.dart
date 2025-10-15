@@ -17,6 +17,39 @@ class _ShellResponse
   });
 }
 
+class _CommandState
+{
+  late final String trimmedInput;
+
+  late final bool isTrailing;
+
+  late final List<String> tokens;
+
+  late final String arg;
+
+  late final String directoryPart;
+
+  late final String namePrefix;
+
+  late final String baseDir;
+
+  _CommandState(String input)
+  {
+    isTrailing = input.endsWith(" ");
+    trimmedInput = input.trimRight();
+    tokens = trimmedInput.isEmpty ? [] : trimmedInput.split(RegExp(r"\s+"));
+
+    arg = isTrailing ? "" : tokens.last;
+    final int slashIndex = arg.lastIndexOf("/");
+    directoryPart = slashIndex >= 0 ? arg.substring(0, slashIndex + 1) : ""; // keep trailing '/'
+    namePrefix = slashIndex >= 0 ? arg.substring(slashIndex + 1) : arg;
+
+    baseDir = (directoryPart.isNotEmpty && directoryPart.startsWith("/"))
+      ? directoryPart
+      : path_util.normalize(path_util.join(Platform.environment["CWD"]!, directoryPart.isEmpty ? "." : directoryPart));
+  }
+}
+
 CommandLine _parseCommandString(String commandString)
 {
   // TODO handle shell escaping
@@ -102,65 +135,59 @@ Future<_ShellResponse> _execute(String commandString)
   }
 }
 
-Future<Set<String>> _completeNamesFromPaths(List<String> pathDirs, String toComplete) async
+Future<Set<String>> _getPossibleNextArguments(String input, _CommandState commandState) async
 {
-  Set<String> matches = {};
+  final String namePrefix = commandState.namePrefix;
+  final String baseDir = commandState.baseDir;
 
-  for (String pathDir in pathDirs)
-  {
-    try {
-      Directory dir = new Directory(pathDir);
-      if (!await dir.exists()) {
-        continue;
-      }
-
-      List<FileSystemEntity> files = await dir.list().toList();
-      for (FileSystemEntity f in files) {
-        final String name = path_util.basename(f.path);
-        if (name.startsWith(toComplete) || toComplete.isEmpty) {
-          matches.add(name);
-        }
-      }
+  try {
+    final Directory dir = new Directory(baseDir);
+    if (!await dir.exists()) {
+      return {};
     }
-    catch (e) {
-      // skip directories we cant read or that dont exist
-      continue;
-    }
+    final List<FileSystemEntity> files = await dir.list().toList();
+    // add all file names that start with prefix
+    return files.map((FileSystemEntity e) => path_util.basename(e.path))
+        .where((String n) => namePrefix.isEmpty || n.startsWith(namePrefix))
+        .map<String>((String n) => commandState.directoryPart + n)
+        .toSet();
+  } on FileSystemException catch (_) {
+    // ignore directories we cant read
+    return {};
   }
+}
 
-  return matches;
+Future<_ShellResponse> _completeSingleTokenCommand(_CommandState state) async
+{
+  final String prefix = state.trimmedInput;
+  final Executable exe = new Executable(rootPath: "/", prefixPath: "");
+  final List<String> cmds = await exe.getExecutablesInPathStartingWith(prefix, Platform.environment);
+  return new _ShellResponse(
+    output: json.encode(cmds),
+    environment: Platform.environment
+  );
+}
+
+_CommandState _getCommandState(String input)
+{
+  return new _CommandState(input);
+}
+
+bool _isCommandASingleToken(_CommandState state)
+{
+  return state.tokens.length <= 1 && !state.isTrailing;
 }
 
 Future<_ShellResponse> _completion(String input) async
 {
-  // extract the last word from the input to complete
-  List<String> parts = input.trim().split(new RegExp(r"\s+"));
-  String toComplete = parts.isEmpty ? "" : parts.last;
-  
-  // determine if we are completing a command (first word) or a path (subsequent words)
-  bool isCommandCompletion = parts.length <= 1;
-  
-  List<String> matches;
-  
-  if (isCommandCompletion) {
-    // complete based on executables in PATH
-    Executable executable = new Executable(
-      rootPath: "/",
-      prefixPath: ""
-    );
-    matches = await executable.getExecutablesInPathStartingWith(toComplete, Platform.environment);
+  final _CommandState commandState = _getCommandState(input);
+  // command completion when there is only one token and no trailing space
+  if (_isCommandASingleToken(commandState)) {
+    return _completeSingleTokenCommand(commandState);
   }
-  else {
-    // complete based on files and directories in CWD only
-    final Set<String> matchSet = await _completeNamesFromPaths(
-      [Platform.environment["CWD"]!],
-      toComplete
-    );
-    matches = matchSet.toList()..sort();
-  }
-  
+
   return new _ShellResponse(
-    output: json.encode(matches),
+    output: json.encode( (await _getPossibleNextArguments(input, commandState)).toList()..sort() ),
     environment: Platform.environment
   );
 }
