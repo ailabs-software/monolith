@@ -59,11 +59,11 @@ async function handleEnter()
   replayQueuedKeystrokes();
 }
 
-function _completeWithSingleMatch(completionList)
+function _completeWithSingleMatch(completion)
 {
   // Single match, complete it by replacing the last word
   let parts = consoleContentWorking.trim().split(" ");
-  parts[parts.length - 1] = completionList[0];
+  parts[parts.length - 1] = completion;
   consoleContentWorking = parts.join(" ");
 }
 
@@ -72,11 +72,7 @@ async function _completeWithMultipleMatches(completionList)
   // Multiple matches, show them as output
   let savedInput = consoleContentWorking;
   finalise();
-  const displayList = completionList.map(s => {
-    const i = s.lastIndexOf("/");
-    return i >= 0 ? s.substring(i+1) : s;
-  });
-  consoleContentFinal += "\n" + displayList.join("\n") + "\n";
+  consoleContentFinal += "\n" + completionList.join("\n") + "\n";
   $print( await doInit() );
   finalise();
   consoleContentWorking = savedInput;
@@ -86,7 +82,7 @@ async function handleTab()
 {
   let completionList = await doCompletion(consoleContentWorking);
   if (completionList.length === 1) {
-    _completeWithSingleMatch(completionList);
+    _completeWithSingleMatch(completionList[0]);
   }
   else if (completionList.length > 1) {
     await _completeWithMultipleMatches(completionList);

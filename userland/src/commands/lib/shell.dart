@@ -1,6 +1,8 @@
 import "dart:convert";
 import "dart:io";
 import "package:path/path.dart" as path_util;
+import "package:glob/glob.dart";
+import "package:glob/list_local_fs.dart";
 import "package:common/monolith_exception.dart";
 import "package:common/executable.dart";
 import "package:common/user_execution_client.dart";
@@ -108,24 +110,14 @@ bool _isCommandArgumentCompletion(String input)
 /** Completes any word after the first -- an argument to the command */
 Stream<String> _completeCommandArgument(String input) async*
 {
-  String dirname = path_util.dirname(input);
-  String basenamePrefix = path_util.basename(input);
-  Directory directory = new Directory(dirname);
-  try {
-    if (!await directory.exists()) {
-      return;
+  Glob glob = new Glob(input + "*");
+  await for (FileSystemEntity entity in glob.list())
+  {
+    String normalised = path_util.normalize(entity.path);
+    if ( entity is Directory ) {
+      normalised = "${normalised}/";
     }
-
-    await for (FileSystemEntity entity in directory.list())
-    {
-      String basename = path_util.basename(entity.path);
-      if ( basename.startsWith(basenamePrefix) ) {
-        yield path_util.join(dirname, basename);
-      }
-    }
-  }
-  on FileSystemException catch (_) {
-    // ignore if we can't read the directory
+    yield normalised;
   }
 }
 
