@@ -92,7 +92,9 @@ async function handleTab()
 
 async function handleKeyDown(event)
 {
-  event.preventDefault();
+  if ( !(event.metaKey || event.ctrlKey) ) {
+    event.preventDefault();
+  }
 
   // If busy, queue the keystroke for later
   if (isBusy) {

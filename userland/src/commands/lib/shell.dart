@@ -125,7 +125,7 @@ Stream<String> _completeCommandArgument(String input) async*
 Future< List<String> > _completeCommand(String input)
 {
   Executable executable = new Executable(rootPath: "/", prefixPath: "", environment: Platform.environment);
-  return executable.getExecutablesInPathStartingWith(input);
+  return executable.getExecutablesInPathStartingWith(input).toList();
 }
 
 Future< List<String> > _completion(String input) async
@@ -152,7 +152,7 @@ Future<_ShellResponse> _run(List<String> arguments) async
       return await _execute( _parseCommandString(arguments[1]) );
     case "completion":
       return new _ShellResponse(
-        output: json.encode( _completion(arguments[1] ) ),
+        output: json.encode( await _completion(arguments[1] ) ),
         environment: Platform.environment
       );
     default:

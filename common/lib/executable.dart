@@ -56,6 +56,30 @@ class Executable
     ];
   }
 
+  Stream<String> getExecutablesInPathStartingWith(String partialCommand) async*
+  {
+    List<String> pathList = _getPathList();
+    if ( path_util.isAbsolute(partialCommand) ) { // TODO DUPLICATE CODE WITH BELOW
+      pathList = const [];
+    }
+    for (String basePath in ["/", ...pathList])
+    {
+      Directory directory = new Directory(basePath);
+      if ( await directory.exists() ) {
+        await for (FileSystemEntity entity in directory.list() )
+        {
+          if (
+            entity is File &&
+            _EXECUTABLE_EXTENSIONS.contains( path_util.extension(entity.path) ) &&
+            path_util.basename(entity.path).startsWith(partialCommand)
+          ) {
+            yield safeJoinPaths(prefixPath, entity.path);
+          }
+        }
+      }
+    }
+  }
+
   Future<String> resolveExecutablePath(String command) async
   {
     List<String> pathList = _getPathList();
@@ -112,49 +136,5 @@ class Executable
       default:
         throw new Exception("execute: Unsupported extension: ${extName}");
     }
-  }
-
-  Future<List<String>> getExecutablesInPathStartingWith(String text) async
-  {
-    final Set<String> matches = {};
-    final List<String> pathList = _getPathList();
-    
-    for (final String pathDir in pathList) {
-      try {
-        final Directory dir = new Directory(safeJoinPaths(rootPath, pathDir));
-        if (!await dir.exists()) {
-          continue;
-        }
-
-        final List<FileSystemEntity> files = await dir.list().toList();
-        for (final FileSystemEntity f in files) {
-          final FileStat stat = await f.stat();
-          if (stat.type != FileSystemEntityType.file) {
-            continue; // skip directories
-          }
-
-          final String fileName = path_util.basename(f.path);
-          final String extName = path_util.extension(fileName);
-          
-          // check if it has an executable extension
-          if (!_EXECUTABLE_EXTENSIONS.contains(extName)) {
-            continue;
-          }
-          
-          // get name without extension
-          final String nameWithoutExt = path_util.basenameWithoutExtension(fileName);
-          
-          // check if it matches the prefix
-          if (nameWithoutExt.startsWith(text) || text.isEmpty) {
-            matches.add(nameWithoutExt);
-          }
-        }
-      } on FileSystemException {
-        // skip directories we cant read or that dont exist
-        continue;
-      }
-    }
-    
-    return matches.toList()..sort();
   }
 }
