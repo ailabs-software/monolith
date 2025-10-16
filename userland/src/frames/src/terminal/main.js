@@ -15,6 +15,8 @@ let keystrokeQueue = [];
 function updateDisplay()
 {
   terminalElement.textContent = consoleContentFinal + consoleContentWorking + CURSOR;
+  // Scroll to bottom
+  terminalElement.scrollTop = terminalElement.scrollHeight;
   // Keep cursor at end by refocusing
   terminalElement.focus();
 }
@@ -94,10 +96,11 @@ async function handleTab()
 
 async function handleKeyDown(event)
 {
+  event.preventDefault();
+
   // If busy, queue the keystroke for later
   if (isBusy) {
     keystrokeQueue.push(event);
-    event.preventDefault();
     return;
   }
 
@@ -128,8 +131,6 @@ async function handleKeyDown(event)
   else if (event.keyCode === 9) {
     await handleTab();
   }
-
-  event.preventDefault();
 }
 
 async function handlePaste(event)
