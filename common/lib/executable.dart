@@ -31,12 +31,16 @@ class Executable
   /** Add this path in front of all paths */
   final String prefixPath;
 
+  /** The current environment */
+  final Map<String, String> environment;
+
   Executable({
     required String this.rootPath,
-    required String this.prefixPath
+    required String this.prefixPath,
+    required Map<String, String> this.environment
   });
 
-  List<String> _getPathList(Map<String, String> environment)
+  List<String> _getPathList()
   {
     if (environment.containsKey(PATH_ENV_VAR)) {
       return environment[PATH_ENV_VAR]!.split(":");
@@ -52,9 +56,9 @@ class Executable
     ];
   }
 
-  Future<String> resolveExecutablePath(String command, Map<String, String> environment) async
+  Future<String> resolveExecutablePath(String command) async
   {
-    List<String> pathList = _getPathList(environment);
+    List<String> pathList = _getPathList();
     if ( path_util.isAbsolute(command) ) {
       pathList = const [];
     }
@@ -71,9 +75,9 @@ class Executable
     throw new MonolithException("command ${command} does not exist in \$PATH (which was: ${pathList.join(":")})");
   }
 
-  Future<CommandLine> resolveExecutable(CommandLine commandLine, Map<String, String> environment) async
+  Future<CommandLine> resolveExecutable(CommandLine commandLine) async
   {
-    String command = await resolveExecutablePath(commandLine.command, environment);
+    String command = await resolveExecutablePath(commandLine.command);
     String extName = path_util.extension(command);
     switch (extName)
     {
@@ -110,10 +114,10 @@ class Executable
     }
   }
 
-  Future<List<String>> getExecutablesInPathStartingWith(String text, Map<String, String> environment) async
+  Future<List<String>> getExecutablesInPathStartingWith(String text) async
   {
     final Set<String> matches = {};
-    final List<String> pathList = _getPathList(environment);
+    final List<String> pathList = _getPathList();
     
     for (final String pathDir in pathList) {
       try {

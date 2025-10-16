@@ -122,26 +122,19 @@ Stream<String> _completeCommandArgument(String input) async*
 }
 
 /** Completes the first word in a command line -- the name of the command itself */
-Future<_ShellResponse> _completeCommand(String input) async
+Future< List<String> > _completeCommand(String input)
 {
-  Executable executable = new Executable(rootPath: "/", prefixPath: "");
-  List<String> commands = await executable.getExecutablesInPathStartingWith(input, Platform.environment);
-  return new _ShellResponse(
-      output: json.encode(commands),
-      environment: Platform.environment
-  );
+  Executable executable = new Executable(rootPath: "/", prefixPath: "", environment: Platform.environment);
+  return executable.getExecutablesInPathStartingWith(input);
 }
 
-Future<_ShellResponse> _completion(String input) async
+Future< List<String> > _completion(String input) async
 {
   // command completion when there is only one token and no trailing space
   if ( _isCommandArgumentCompletion(input) ) {
     CommandLine commandLine = _parseCommandString(input);
     String argumentInput = commandLine.arguments.firstOrNull ?? "";
-    return new _ShellResponse(
-      output: json.encode( ( await _completeCommandArgument(argumentInput).toList() )..sort() ),
-      environment: Platform.environment
-    );
+    return ( await _completeCommandArgument(argumentInput).toList() )..sort();
   }
   else {
     return _completeCommand(input);
@@ -158,7 +151,10 @@ Future<_ShellResponse> _run(List<String> arguments) async
     case "execute":
       return await _execute( _parseCommandString(arguments[1]) );
     case "completion":
-      return await _completion(arguments[1] );
+      return new _ShellResponse(
+        output: json.encode( _completion(arguments[1] ) ),
+        environment: Platform.environment
+      );
     default:
       return new _ShellResponse(
         output: "shell.aot: Bad action type.",
