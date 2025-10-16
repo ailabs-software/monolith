@@ -8,6 +8,7 @@ const terminalElement = document.getElementById("terminal");
 
 let consoleContentFinal = "";
 let consoleContentWorking = "";
+let consoleContentWorkingIndex = 0; // insertion/cursor index within consoleContentWorking
 
 // Busy mode: prevent race conditions during command execution
 let isBusy = false;
@@ -19,7 +20,9 @@ let commandHistoryPosition = 0; // relative to end
 
 function updateDisplay()
 {
-  terminalElement.textContent = consoleContentFinal + consoleContentWorking + CURSOR;
+  const before = consoleContentWorking.slice(0, consoleContentWorkingIndex);
+  const after = consoleContentWorking.slice(consoleContentWorkingIndex);
+  terminalElement.textContent = consoleContentFinal + before + CURSOR + after;
   // Scroll to bottom
   terminalElement.scrollTop = terminalElement.scrollHeight;
   // Keep cursor at end by refocusing
@@ -28,14 +31,48 @@ function updateDisplay()
 
 function $print(string)
 {
-  consoleContentWorking += string;
+  // splice the given string at the current cursor position
+  const before = consoleContentWorking.slice(0, consoleContentWorkingIndex);
+  const after = consoleContentWorking.slice(consoleContentWorkingIndex);
+  consoleContentWorking = before + string + after;
+  consoleContentWorkingIndex += string.length;
   updateDisplay();
+}
+
+function resetCursorWithCurrentWorking()
+{
+  consoleContentWorkingIndex = consoleContentWorking.length;
 }
 
 function finalise()
 {
   consoleContentFinal += consoleContentWorking;
   consoleContentWorking = "";
+  consoleContentWorkingIndex = 0; // reset index on finalise
+}
+
+function clampContenWorkingIndex()
+{
+  consoleContentWorkingIndex = Math.max(0, Math.min(consoleContentWorkingIndex, consoleContentWorking.length));
+}
+
+function handleDeleteOrBackspace(offset)
+{
+  console.log(consoleContentWorking.slice(0, consoleContentWorkingIndex + offset), consoleContentWorking.slice(consoleContentWorkingIndex + offset + 1));
+  consoleContentWorking = consoleContentWorking.slice(0, consoleContentWorkingIndex + offset) + consoleContentWorking.slice(consoleContentWorkingIndex + offset + 1);
+  consoleContentWorkingIndex += offset;
+  clampContenWorkingIndex();
+  updateDisplay();
+}
+
+function handleBackspace()
+{
+  handleDeleteOrBackspace(-1);
+}
+
+function handleDelete()
+{
+  handleDeleteOrBackspace(1);
 }
 
 function commandHistoryAdd(command)
@@ -63,6 +100,7 @@ function handleRecallCommandHistory(direction)
     // keep in range
     commandHistoryPosition = Math.max(0, Math.min(commandHistory.length - 1, commandHistoryPosition));
     consoleContentWorking = commandHistory[commandHistory.length - 1 - commandHistoryPosition];
+    resetCursorWithCurrentWorking();
     updateDisplay();
   }
 }
@@ -100,6 +138,7 @@ function completeWithSingleMatch(completion)
   let parts = consoleContentWorking.trim().split(" ");
   parts[parts.length - 1] = completion;
   consoleContentWorking = parts.join(" ");
+  resetCursorWithCurrentWorking();
 }
 
 async function completeWithMultipleMatches(completionList)
@@ -111,6 +150,7 @@ async function completeWithMultipleMatches(completionList)
   $print( await doInit() );
   finalise();
   consoleContentWorking = savedInput;
+  resetCursorWithCurrentWorking();
 }
 
 async function handleTab()
@@ -122,6 +162,14 @@ async function handleTab()
   else if (completionList.length > 1) {
     await completeWithMultipleMatches(completionList);
   }
+  updateDisplay();
+}
+
+function _moveCursorHorizontally(direction)
+{
+  // clamp cursor index between 0 and length
+  consoleContentWorkingIndex += direction;
+  clampContenWorkingIndex();
   updateDisplay();
 }
 
@@ -145,14 +193,27 @@ async function handleKeyDown(event)
 
   // Handle backspace
   else if (event.keyCode === 8) {
-    consoleContentWorking = consoleContentWorking.slice(0, -1);
-    updateDisplay();}
+    handleBackspace();
+    event.preventDefault();
+  }
 
   // Handle delete
   else if (event.keyCode === 127) {
-    // For simplicity, treating Delete like Backspace
-    consoleContentWorking = consoleContentWorking.slice(0, -1);
-    updateDisplay();
+    // Delete: remove char at cursor
+    handleDelete();
+    event.preventDefault();
+  }
+
+  // Handle Left Arrow
+  else if (event.keyCode === 37) {
+    _moveCursorHorizontally(-1);
+    event.preventDefault();
+  }
+
+  // Handle Right Arrow
+  else if (event.keyCode === 39) {
+    _moveCursorHorizontally(1);
+    event.preventDefault();
   }
 
   // Handle Enter
@@ -206,8 +267,11 @@ function replayQueuedKeystrokes()
       $print(event.key);
     }
     else if (event.keyCode === 8 || event.keyCode === 127) {
-      consoleContentWorking = consoleContentWorking.slice(0, -1);
-      updateDisplay();
+      if (event.keyCode === 8) {
+        handleBackspace();
+      } else {
+        handleDelete();
+      }
     }
   }
 }
