@@ -1,6 +1,8 @@
 import "dart:convert";
 import "dart:io";
 import "package:path/path.dart" as path_util;
+import "package:glob/glob.dart";
+import "package:glob/list_local_fs.dart";
 import "package:common/monolith_exception.dart";
 import "package:common/executable.dart";
 import "package:common/user_execution_client.dart";
@@ -19,11 +21,11 @@ class _ShellResponse
 
 CommandLine _parseCommandString(String commandString)
 {
-  // TODO handle shell escaping
+  // TODO handle shell escaping quotes
   List<String> parts = commandString.split(" ");
   return new CommandLine(
     command: parts.first,
-    arguments: parts.sublist(1)
+    arguments: parts.sublist(1).where( (String part) => part.isNotEmpty ).toList()
   );
 }
 
@@ -55,62 +57,135 @@ Future<_ShellResponse> _changeDirectory(String directory) async
   );
 }
 
-Future<void> _executeStreaming(CommandLine commandLine) async
+String _formatExecuteFileOutput(CommandLine commandLine, UserExecutionClientResponse response)
+{
+  // pass through command output
+  StringBuffer sb = new StringBuffer();
+  sb.writeln(response.stdout.toString().trimRight());
+  String stderr = response.stderr.toString();
+  if (stderr.isNotEmpty) {
+    sb.writeln("[${commandLine.command} error]");
+    sb.writeln(stderr.trimRight());
+  }
+  if (response.exitCode != null) {
+    sb.writeln("[${commandLine.command}: exited with code ${response.exitCode}]");
+  }
+  return sb.toString();
+}
+
+Stream<_ShellResponse> _executeFile(CommandLine commandLine) async*
 {
   try {
     String? authString = Platform.environment["AUTH_STRING"];
     if (authString == null) {
       throw new Exception("shell.aot: Missing AUTH_STRING.");
     }
-    
+
     UserExecutionClient client = new UserExecutionClient(authString: authString);
-    await client.executeStreaming(
-      commandLine,
-      Platform.environment,
-      onStdout: (String output) {
-        stdout.writeln(json.encode({"output": output, "environment": Platform.environment}));
-      },
-      onStderr: (String output) {
-        stdout.writeln(json.encode({"output": output, "environment": Platform.environment}));
-      }
-    );
-  } catch (e) {
+    await for (UserExecutionClientResponse response in client.execute(commandLine, Platform.environment) )
+    {
+      yield new _ShellResponse(
+        output: _formatExecuteFileOutput(commandLine, response),
+        environment: Platform.environment
+      );
+    }
+  }
+  catch (e) {
     stdout.write(json.encode({"output": e.toString(), "environment": Platform.environment}));
-    await stdout.flush();
   }
 }
 
-Future<void> _execute(String commandString) async
+Stream<_ShellResponse> _execute(CommandLine commandLine) async*
 {
-  // parse command line
-  CommandLine commandLine = _parseCommandString(commandString);
   switch (commandLine.command)
   {
     case "cd":
       _ShellResponse response = await _changeDirectory(commandLine.arguments.first);
-      stdout.write(json.encode({"output": response.output, "environment": response.environment}));
-      await stdout.flush();
+      yield response;
       break;
     default:
-      await _executeStreaming(commandLine);
+      yield* _executeFile(commandLine);
   }
 }
 
-Future<void> main(List<String> arguments) async
+bool _isCommandArgumentCompletion(String input)
+{
+  return input.contains(" ");
+}
+
+/** Completes any word after the first -- an argument to the command */
+Stream<String> _completeCommandArgument(String input) async*
+{
+  Glob glob = new Glob(input + "*");
+  await for (FileSystemEntity entity in glob.list())
+  {
+    String normalised = path_util.normalize(entity.path);
+    if ( entity is Directory ) {
+      normalised = "${normalised}/";
+    }
+    yield normalised;
+  }
+}
+
+/** Completes the first word in a command line -- the name of the command itself */
+Future< List<String> > _completeCommand(String input)
+{
+  Executable executable = new Executable(rootPath: "/", prefixPath: "", environment: Platform.environment);
+  return executable.getExecutablesInPathStartingWith(input).toList();
+}
+
+Future< List<String> > _completion(String input) async
+{
+  // command completion when there is only one token and no trailing space
+  if ( _isCommandArgumentCompletion(input) ) {
+    CommandLine commandLine = _parseCommandString(input);
+    String argumentInput = commandLine.arguments.firstOrNull ?? "";
+    return ( await _completeCommandArgument(argumentInput).toList() )..sort();
+  }
+  else {
+    return _completeCommand(input);
+  }
+}
+
+Future< Stream<_ShellResponse> > _run(List<String> arguments) async
 {
   String action = arguments[0];
   switch (action)
   {
     case "init":
-      _ShellResponse response = await _init();
-      stdout.write(json.encode({"output": response.output, "environment": response.environment}));
-      await stdout.flush();
-      break;
+      return new Stream.value( await _init() );
     case "execute":
-      await _execute(arguments[1]);
-      break;
+      return _execute( _parseCommandString(arguments[1]) );
+    case "completion":
+      return new Stream.value(
+        new _ShellResponse(
+          output: json.encode( await _completion(arguments[1] ) ),
+          environment: Platform.environment
+        )
+      );
     default:
-      stdout.write(json.encode({"output": "shell.aot: Bad action type.", "environment": Platform.environment}));
-      await stdout.flush();
+      return new Stream.value(
+        new _ShellResponse(
+          output: "shell.aot: Bad action type.",
+          environment: Platform.environment
+        )
+      );
+  }
+}
+
+Future<void> main(List<String> arguments) async
+{
+  Stream<_ShellResponse> responseStream = await _run(arguments);
+  await for (_ShellResponse response in responseStream)
+  {
+    stdout.write(
+      json.encode({
+        // return the output of the shell execution
+        "output": response.output,
+        // return the environment with mutations we performed to it
+        "environment": response.environment
+      })
+    );
+    await stdout.flush();
   }
 }

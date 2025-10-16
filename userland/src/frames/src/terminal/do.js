@@ -122,5 +122,6 @@ async function doExecute(commandString, onOutput)
 
 async function doCompletion(string)
 {
-  return _do("completion", [string]);
+  // json list of strings expected from shell.aot for completion action
+  return JSON.parse( await _do("completion", [string]) );
 }
