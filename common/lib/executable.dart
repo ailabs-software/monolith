@@ -73,7 +73,13 @@ class Executable
             _EXECUTABLE_EXTENSIONS.contains( path_util.extension(entity.path) ) &&
             path_util.basename(entity.path).startsWith(partialCommand)
           ) {
-            yield safeJoinPaths(prefixPath, entity.path);
+            bool partialCommandIsPath = partialCommand.contains("/");
+            if (partialCommandIsPath) {
+              yield entity.path;
+            }
+            else {
+              yield path_util.basenameWithoutExtension(entity.path);
+            }
           }
         }
       }
