@@ -40,14 +40,6 @@ class Executable
     required Map<String, String> this.environment
   });
 
-  List<String> _getPathList()
-  {
-    if (environment.containsKey(PATH_ENV_VAR)) {
-      return environment[PATH_ENV_VAR]!.split(":");
-    }
-    return const [];
-  }
-
   List<String> _getFullPathWithExtensions(String fullPath)
   {
     return [
@@ -56,13 +48,26 @@ class Executable
     ];
   }
 
-  Stream<String> getExecutablesInPathStartingWith(String partialCommand) async*
+  List<String> _getPathList()
+  {
+    if (environment.containsKey(PATH_ENV_VAR)) {
+      return environment[PATH_ENV_VAR]!.split(":");
+    }
+    return const [];
+  }
+
+  List<String> _getPathsConsideredInExecutableResolutionLoop(String command)
   {
     List<String> pathList = _getPathList();
-    if ( path_util.isAbsolute(partialCommand) ) { // TODO DUPLICATE CODE WITH BELOW
+    if ( path_util.isAbsolute(command) ) {
       pathList = const [];
     }
-    for (String basePath in ["/", ...pathList])
+    return ["/", ...pathList];
+  }
+
+  Stream<String> getExecutablesInPathStartingWith(String partialCommand) async*
+  {
+    for (String basePath in _getPathsConsideredInExecutableResolutionLoop(partialCommand) )
     {
       Directory directory = new Directory(basePath);
       if ( await directory.exists() ) {
@@ -88,11 +93,7 @@ class Executable
 
   Future<String> resolveExecutablePath(String command) async
   {
-    List<String> pathList = _getPathList();
-    if ( path_util.isAbsolute(command) ) {
-      pathList = const [];
-    }
-    for (String basePath in ["/", ...pathList])
+    for (String basePath in _getPathsConsideredInExecutableResolutionLoop(command) )
     {
       String fullPath = safeJoinPaths(basePath, command);
       for (String fullPathWithExtension in _getFullPathWithExtensions(fullPath) )
@@ -102,7 +103,7 @@ class Executable
         }
       }
     }
-    throw new MonolithException("command ${command} does not exist in \$PATH (which was: ${pathList.join(":")})");
+    throw new MonolithException("command ${command} does not exist in \$PATH (which was: ${_getPathList().join(":")})");
   }
 
   Future<CommandLine> resolveExecutable(CommandLine commandLine) async

@@ -1,5 +1,7 @@
 # !/bin/sh
 
+set -e
+
 # bin dir
 mkdir /opt/monolith/userland/system/bin
 
