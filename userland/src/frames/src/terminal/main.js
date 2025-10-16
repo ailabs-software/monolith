@@ -2,6 +2,7 @@
 /** @fileoverview Handle the terminal frame */
 
 const CURSOR = "\u2588"
+const MAX_COMMAND_HISTORY_LEN = 1996;
 
 const terminalElement = document.getElementById("terminal");
 
@@ -11,6 +12,10 @@ let consoleContentWorking = "";
 // Busy mode: prevent race conditions during command execution
 let isBusy = false;
 let keystrokeQueue = [];
+
+// History of submitted commands
+let commandHistory = [];
+let commandHistoryPosition = 0; // relative to end
 
 function updateDisplay()
 {
@@ -33,6 +38,35 @@ function finalise()
   consoleContentWorking = "";
 }
 
+function commandHistoryAdd(command)
+{
+  if (commandHistory.length > MAX_COMMAND_HISTORY_LEN) {
+    commandHistory.shift();
+  }
+  commandHistory.push(command);
+}
+
+function handleRecallCommandHistory(direction)
+{
+  if (commandHistory.length > 0) {
+    // add the current command to history before moving (may be empty)
+    if ( // only when at end of history
+         commandHistoryPosition === 0
+         // and only when direction is up
+         && direction === 1
+         // and not equal to the last command
+         && commandHistory[commandHistory.length - 1] !== consoleContentWorking) {
+      commandHistoryAdd(consoleContentWorking);
+    }
+    // apply the direction
+    commandHistoryPosition += direction;
+    // keep in range
+    commandHistoryPosition = Math.max(0, Math.min(commandHistory.length - 1, commandHistoryPosition));
+    consoleContentWorking = commandHistory[commandHistory.length - 1 - commandHistoryPosition];
+    updateDisplay();
+  }
+}
+
 async function handleEnter()
 {
   $print("\n");
@@ -41,7 +75,8 @@ async function handleEnter()
   
   // Enter busy mode
   isBusy = true;
-  
+
+  commandHistoryAdd(commandString);
   let output = await doExecute(commandString);
   let isClearCommand = output === "\u001b[2J\u001b[H\n";
   if (isClearCommand) {
@@ -59,7 +94,7 @@ async function handleEnter()
   replayQueuedKeystrokes();
 }
 
-function _completeWithSingleMatch(completion)
+function completeWithSingleMatch(completion)
 {
   // Single match, complete it by replacing the last word
   let parts = consoleContentWorking.trim().split(" ");
@@ -67,7 +102,7 @@ function _completeWithSingleMatch(completion)
   consoleContentWorking = parts.join(" ");
 }
 
-async function _completeWithMultipleMatches(completionList)
+async function completeWithMultipleMatches(completionList)
 {
   // Multiple matches, show them as output
   let savedInput = consoleContentWorking;
@@ -82,10 +117,10 @@ async function handleTab()
 {
   let completionList = await doCompletion(consoleContentWorking);
   if (completionList.length === 1) {
-    _completeWithSingleMatch(completionList[0]);
+    completeWithSingleMatch(completionList[0]);
   }
   else if (completionList.length > 1) {
-    await _completeWithMultipleMatches(completionList);
+    await completeWithMultipleMatches(completionList);
   }
   updateDisplay();
 }
@@ -128,6 +163,15 @@ async function handleKeyDown(event)
   // Handle Tab
   else if (event.keyCode === 9) {
     await handleTab();
+  }
+
+  // Handle cursor up arrow
+  else if (event.keyCode === 38) {
+    handleRecallCommandHistory(1);
+  }
+  // Handle cursor down arrow
+  else if (event.keyCode === 40) {
+    handleRecallCommandHistory(-1);
   }
 }
 
