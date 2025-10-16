@@ -55,7 +55,7 @@ Future<_ShellResponse> _changeDirectory(String directory) async
   );
 }
 
-Future<void> _executeFileStreaming(CommandLine commandLine) async
+Future<void> _executeStreaming(CommandLine commandLine) async
 {
   try {
     String? authString = Platform.environment["AUTH_STRING"];
@@ -92,7 +92,7 @@ Future<void> _execute(String commandString) async
       await stdout.flush();
       break;
     default:
-      await _executeFileStreaming(commandLine);
+      await _executeStreaming(commandLine);
   }
 }
 
