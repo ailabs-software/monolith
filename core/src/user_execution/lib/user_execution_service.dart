@@ -45,6 +45,50 @@ class _UserExecutionService
     request.response.add(fileBytes);
   }
 
+  Future<void> _handleStdOutput(Mutex flushMutex, HttpRequest request, String type, List<int> bytes) async
+  {
+    final String data = utf8.decode(bytes).replaceAll("\r", "\n");
+    request.response.write(jsonEncode({type: data}) + "\n");
+    await flushMutex.protect(request.response.flush);
+  }
+
+  void _setChunkStreamingHeaders(HttpRequest request)
+  {
+    // Configure for true streaming (disable output buffering and discourage proxy buffering)
+    request.response.bufferOutput = false;
+    request.response.headers.contentType = ContentType("application", "x-ndjson", charset: "utf-8");
+    request.response.headers.set("Cache-Control", "no-cache, no-transform");
+    request.response.headers.set("Connection", "keep-alive");
+    request.response.headers.set("X-Accel-Buffering", "no");
+    request.response.headers.chunkedTransferEncoding = true; // explicit chunked
+    request.response.headers.set("Content-Encoding", "identity");
+  }
+
+  Future<void> _registerStdListeners(HttpRequest request, Process process) async
+  {
+    final Mutex flushMutex = new Mutex();
+
+    // Stream stdout chunks as they arrive (use raw bytes, flush per chunk)
+    Future<void> stdoutDone = process.stdout.listen((List<int> bytes) async {
+      _handleStdOutput(flushMutex, request, "stdout", bytes);
+    }).asFuture();
+    
+    // Stream stderr chunks as they arrive (use raw bytes, flush per chunk)
+    Future<void> stderrDone = process.stderr.listen((List<int> bytes) async {
+      _handleStdOutput(flushMutex, request, "stderr", bytes);
+    }).asFuture();
+    
+    // Wait for both streams and process to complete
+    await Future.wait([stdoutDone, stderrDone]);
+  }
+
+  Future<void> _respondWithExitCode(HttpRequest request, Process process) async
+  {
+    final int exitCode = await process.exitCode;
+    request.response.write( jsonEncode({"exit_code": exitCode}) + "\n" );
+    await request.response.flush();
+  }
+
   Future<void> _handleExecuteCommandAsUser(HttpRequest request, String path, String authString) async
   {
     // Get arguments from request body
@@ -57,14 +101,7 @@ class _UserExecutionService
     // Execute command as this user
     Process process = await ExecuteAs.executeAsUser(authString, new CommandLine(command: path, arguments: arguments), environment);
 
-    // Configure for true streaming (disable output buffering and discourage proxy buffering)
-    request.response.bufferOutput = false;
-    request.response.headers.contentType = ContentType("application", "x-ndjson", charset: "utf-8");
-    request.response.headers.set("Cache-Control", "no-cache, no-transform");
-    request.response.headers.set("Connection", "keep-alive");
-    request.response.headers.set("X-Accel-Buffering", "no");
-    request.response.headers.chunkedTransferEncoding = true; // explicit chunked
-    request.response.headers.set("Content-Encoding", "identity");
+    _setChunkStreamingHeaders(request);
 
     // Initial JSON padding to defeat proxy/browser buffering while staying valid NDJSON
     // This line is valid JSON but ignored by clients (no stdout/stderr/exit_code)
@@ -72,27 +109,9 @@ class _UserExecutionService
     request.response.write(_padding + "\n");
     await request.response.flush();
 
-    Mutex flushMutex = new Mutex();
+    await _registerStdListeners(request, process);
 
-    // Stream stdout chunks as they arrive (use raw bytes, flush per chunk)
-    Future<void> stdoutDone = process.stdout.listen((List<int> bytes) async {
-      final String data = utf8.decode(bytes).replaceAll("\r", "\n");
-      request.response.write(jsonEncode({"stdout": data}) + "\n");
-      await flushMutex.protect(request.response.flush);
-    }).asFuture();
-    
-    // Stream stderr chunks as they arrive (use raw bytes, flush per chunk)
-    Future<void> stderrDone = process.stderr.listen((List<int> bytes) async {
-      final String data = utf8.decode(bytes).replaceAll("\r", "\n");
-      request.response.write(jsonEncode({"stderr": data}) + "\n");
-      await flushMutex.protect(request.response.flush);
-    }).asFuture();
-    
-    // Wait for both streams and process to complete
-    await Future.wait([stdoutDone, stderrDone]);
-    final int exitCode = await process.exitCode;
-    request.response.write( jsonEncode({"exit_code": exitCode}) + "\n" );
-    await request.response.flush();
+    await _respondWithExitCode(request, process);
   }
 
   Future<void> _routeRequest(HttpRequest request, String authString) async

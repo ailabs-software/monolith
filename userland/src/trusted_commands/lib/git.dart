@@ -1,4 +1,5 @@
 import "dart:io";
+import "package:common/command.dart";
 import "package:mutex/mutex.dart";
 
 /** @fileoverview Wraps git. Runs in trusted, so outside chroot */
@@ -22,32 +23,18 @@ enum _GitCommands
   const _GitCommands(String this.command);
 }
 
-class _GitWrapper
+class _GitWrapper extends Command
 {
   final _GitCommands gitCommand;
 
   _GitWrapper(_GitCommands this.gitCommand);
 
-  Future<void> parse(List<String> args) async
-  {
-    final String token = await _readGitToken();
-
-    await _runGitCommand(token, args);
-  }
-
-  Future<String> _readGitToken() async
+  String _readGitToken()
   {
     return _GIT_SECRET_ACCESS;
-    final File file = File("/opt/monolith/secrets/git.txt");
-    if (! await file.exists()) {
-      print("git.txt does not exist");
-      exit(3);
-    }
-    final String token = await file.readAsString();
-    return token.trim();
   }
 
-  Future<void> _runGitCommand(String token, [List<String> args = const []]) async
+  List<String> _transformArgsToTokenUrl(List<String> args)
   {
     const String gitUrlPrefix = "https://github.com/";
     const String gitSshPrefix = "git@github.com:";
@@ -60,53 +47,43 @@ class _GitWrapper
       if (arg.startsWith(gitUrlPrefix)) {
         path = arg.substring(gitUrlPrefix.length);
       }
-      return path == null ? arg : "https://${token}@github.com/${path}";
+      return path == null ? arg : "https://${_readGitToken()}@github.com/${path}";
     }).toList();
+    return transformedArgs;
+  }
+
+  List<String> _getFinalArguments(List<String> args)
+  {
+    final List<String> transformedArgs = _transformArgsToTokenUrl(args);
 
     // Force immediate progress for operations that emit progress (clone/pull/push)
     final bool isProgressy = gitCommand == _GitCommands.clone || gitCommand == _GitCommands.pull || gitCommand == _GitCommands.push;
-    final List<String> finalArgs = <String>[
+    return [
       if (isProgressy) ...["-c", "progress.delay=0"],
       gitCommand.command,
       if (isProgressy && !transformedArgs.contains("--progress")) "--progress",
       ...transformedArgs,
     ];
+  }
 
+  ProcessInformation getProcessInformation(List<String> args)
+  {
     final String userCwd = Platform.environment["CWD"] ?? "/";
     final String actualCwd = "/opt/monolith/userland$userCwd";
 
-    final Process process = await Process.start(
-      "/usr/bin/git",
-      finalArgs,
+    return ProcessInformation(
+      executable: "/usr/bin/git",
+      arguments: _getFinalArguments(args),
       environment: {
         ...Platform.environment,
         "GIT_ASKPASS": "echo",
         "GIT_TERMINAL_PROMPT": "0",
-        "GITHUB_TOKEN": token,
+        "GITHUB_TOKEN": _readGitToken(),
         // Flush progress immediately
         "GIT_FLUSH": "1",
       },
       workingDirectory: actualCwd,
     );
-
-    Mutex flushMutex = new Mutex();
-
-    // Stream stdout
-    process.stdout.listen( (List<int> data) {
-      stdout.add(data);
-      flushMutex.protect(stdout.flush);
-    });
-
-    // Stream stderr
-    process.stderr.listen( (List<int> data) {
-      stderr.add(data);
-      flushMutex.protect(stderr.flush);
-    });
-
-    final int exitCode = await process.exitCode;
-    if (exitCode != 0) {
-      exit(exitCode);
-    }
   }
 }
 
