@@ -17,46 +17,13 @@ class _ShellResponse
   });
 }
 
-class _CommandState
-{
-  late final String trimmedInput;
-
-  late final bool isTrailing;
-
-  late final List<String> tokens;
-
-  late final String arg;
-
-  late final String directoryPart;
-
-  late final String namePrefix;
-
-  late final String baseDir;
-
-  _CommandState(String input)
-  {
-    isTrailing = input.endsWith(" ");
-    trimmedInput = input.trimRight();
-    tokens = trimmedInput.isEmpty ? [] : trimmedInput.split(RegExp(r"\s+"));
-
-    arg = isTrailing ? "" : tokens.last;
-    final int slashIndex = arg.lastIndexOf("/");
-    directoryPart = slashIndex >= 0 ? arg.substring(0, slashIndex + 1) : ""; // keep trailing '/'
-    namePrefix = slashIndex >= 0 ? arg.substring(slashIndex + 1) : arg;
-
-    baseDir = (directoryPart.isNotEmpty && directoryPart.startsWith("/"))
-      ? directoryPart
-      : path_util.normalize(path_util.join(Platform.environment["CWD"]!, directoryPart.isEmpty ? "." : directoryPart));
-  }
-}
-
 CommandLine _parseCommandString(String commandString)
 {
-  // TODO handle shell escaping
+  // TODO handle shell escaping quotes
   List<String> parts = commandString.split(" ");
   return new CommandLine(
     command: parts.first,
-    arguments: parts.sublist(1)
+    arguments: parts.sublist(1).where( (String part) => part.isNotEmpty ).toList()
   );
 }
 
@@ -122,10 +89,8 @@ Future<_ShellResponse> _executeFile(CommandLine commandLine) async
   }
 }
 
-Future<_ShellResponse> _execute(String commandString)
+Future<_ShellResponse> _execute(CommandLine commandLine)
 {
-  // parse command line
-  CommandLine commandLine = _parseCommandString(commandString);
   switch (commandLine.command)
   {
     case "cd":
@@ -135,56 +100,60 @@ Future<_ShellResponse> _execute(String commandString)
   }
 }
 
-Future<Set<String>> _getPossibleNextArguments(String input, _CommandState commandState) async
+bool _isCommandArgumentCompletion(String input)
 {
-  final String namePrefix = commandState.namePrefix;
-  final String baseDir = commandState.baseDir;
+  return input.contains(" ");
+}
 
+/** Completes any word after the first -- an argument to the command */
+Stream<String> _completeCommandArgument(String input) async*
+{
+  String dirname = path_util.dirname(input);
+  String basenamePrefix = path_util.basename(input);
+  Directory directory = new Directory(dirname);
   try {
-    final Directory dir = new Directory(baseDir);
-    if (!await dir.exists()) {
-      return {};
+    if (!await directory.exists()) {
+      return;
     }
-    final List<FileSystemEntity> files = await dir.list().toList();
-    // add all file names that start with prefix
-    return files.map((FileSystemEntity e) => path_util.basename(e.path))
-        .where((String n) => namePrefix.isEmpty || n.startsWith(namePrefix))
-        .map<String>((String n) => commandState.directoryPart + n)
-        .toSet();
-  } on FileSystemException catch (_) {
-    // ignore directories we cant read
-    return {};
+
+    await for (FileSystemEntity entity in directory.list())
+    {
+      String basename = path_util.basename(entity.path);
+      if ( basename.startsWith(basenamePrefix) ) {
+        yield path_util.join(dirname, basename);
+      }
+    }
+  }
+  on FileSystemException catch (_) {
+    // ignore if we can't read the directory
   }
 }
 
-Future<_ShellResponse> _completeSingleTokenCommand(_CommandState state) async
+/** Completes the first word in a command line -- the name of the command itself */
+Future<_ShellResponse> _completeCommand(String input) async
 {
-  final String prefix = state.trimmedInput;
-  final Executable exe = new Executable(rootPath: "/", prefixPath: "");
-  final List<String> cmds = await exe.getExecutablesInPathStartingWith(prefix, Platform.environment);
+  Executable executable = new Executable(rootPath: "/", prefixPath: "");
+  List<String> commands = await executable.getExecutablesInPathStartingWith(input, Platform.environment);
   return new _ShellResponse(
-    output: json.encode(cmds),
-    environment: Platform.environment
+      output: json.encode(commands),
+      environment: Platform.environment
   );
-}
-
-bool _isCommandASingleToken(_CommandState state)
-{
-  return state.tokens.length <= 1 && !state.isTrailing;
 }
 
 Future<_ShellResponse> _completion(String input) async
 {
-  final _CommandState commandState = new _CommandState(input);
   // command completion when there is only one token and no trailing space
-  if (_isCommandASingleToken(commandState)) {
-    return _completeSingleTokenCommand(commandState);
+  if ( _isCommandArgumentCompletion(input) ) {
+    CommandLine commandLine = _parseCommandString(input);
+    String argumentInput = commandLine.arguments.firstOrNull ?? "";
+    return new _ShellResponse(
+      output: json.encode( ( await _completeCommandArgument(argumentInput).toList() )..sort() ),
+      environment: Platform.environment
+    );
   }
-
-  return new _ShellResponse(
-    output: json.encode( (await _getPossibleNextArguments(input, commandState)).toList()..sort() ),
-    environment: Platform.environment
-  );
+  else {
+    return _completeCommand(input);
+  }
 }
 
 Future<_ShellResponse> _run(List<String> arguments) async
@@ -195,9 +164,9 @@ Future<_ShellResponse> _run(List<String> arguments) async
     case "init":
       return await _init();
     case "execute":
-      return await _execute(arguments[1]);
+      return await _execute( _parseCommandString(arguments[1]) );
     case "completion":
-      return await _completion(arguments.last);
+      return await _completion(arguments[1] );
     default:
       return new _ShellResponse(
         output: "shell.aot: Bad action type.",
