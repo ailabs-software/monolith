@@ -71,7 +71,7 @@ String _formatExecuteFileOutput(CommandLine commandLine, UserExecutionClientResp
 {
   // pass through command output
   StringBuffer sb = new StringBuffer();
-  sb.writeln(response.stdout.toString().trimRight());
+  sb.write( response.stdout.toString() );
   String stderr = response.stderr.toString();
   if (stderr.isNotEmpty) {
     sb.writeln("[${commandLine.command} error]");
