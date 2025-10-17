@@ -3,6 +3,8 @@ import "dart:io";
 import "package:common/constants/user_execution_service_port.dart";
 import "package:common/executable.dart";
 
+/** @fileoverview User execution client for Dart, used on the server side */
+
 class UserExecutionClientResponse
 {
   final String stdout;
