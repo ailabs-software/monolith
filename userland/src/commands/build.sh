@@ -1,5 +1,8 @@
 # !/bin/sh
 
+# stop on error
+set -e
+
 # bin dir
 mkdir /opt/monolith/userland/system/bin
 
@@ -8,8 +11,8 @@ cd /tmp/src/commands/
 /opt/monolith/core/dart_sdk/bin/dart pub get
 /opt/monolith/core/dart_sdk/bin/dart compile aot-snapshot lib/terminal.dart -o /opt/monolith/userland/system/bin/terminal.aot
 /opt/monolith/core/dart_sdk/bin/dart compile aot-snapshot lib/shell.dart -o /opt/monolith/userland/system/bin/shell.aot
-/opt/monolith/core/dart_sdk/bin/dart compile aot-snapshot lib/clear.dart -o /opt/monolith/userland/system/bin/clear.aot
 /opt/monolith/core/dart_sdk/bin/dart compile aot-snapshot lib/echo.dart -o /opt/monolith/userland/system/bin/echo.aot
+/opt/monolith/core/dart_sdk/bin/dart compile aot-snapshot lib/which.dart -o /opt/monolith/userland/system/bin/which.aot
 
 # provide standard commands
 ln /bin/busybox /opt/monolith/userland/system/bin/busybox.exe

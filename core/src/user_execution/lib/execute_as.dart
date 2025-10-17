@@ -21,8 +21,8 @@ class ExecuteAs
     // if bare, run outside chroot
     if (privilege == UserAccessPrivilege.bare) {
       // re-resolve executable within file_system_source_path
-      Executable executable = new Executable(rootPath: file_system_source_path, prefixPath: file_system_source_path);
-      CommandLine commandLine = await executable.resolveExecutable(originalCommandLine, environment);
+      Executable executable = new Executable(rootPath: file_system_source_path, prefixPath: file_system_source_path, environment: environment);
+      CommandLine commandLine = await executable.resolveExecutable(originalCommandLine);
       return Process.start(
         commandLine.command,
         commandLine.arguments,
@@ -31,8 +31,8 @@ class ExecuteAs
       );
     }
 
-    Executable executable = new Executable(rootPath: file_system_source_path, prefixPath: "");
-    CommandLine commandLine = await executable.resolveExecutable(originalCommandLine, environment);
+    Executable executable = new Executable(rootPath: file_system_source_path, prefixPath: "", environment: environment);
+    CommandLine commandLine = await executable.resolveExecutable(originalCommandLine);
 
     return Process.start(
       "/opt/monolith/core/bin/monolith_chroot",
@@ -46,9 +46,9 @@ class ExecuteAs
   {
     print("execute as: ${commandLine.command}");
 
-    Executable executable = new Executable(rootPath: file_system_source_path, prefixPath: "");
+    Executable executable = new Executable(rootPath: file_system_source_path, prefixPath: "", environment: environment);
 
-    bool isTrustedExecutable = await trustedExecutablesStore.get(await executable.resolveExecutablePath(commandLine.command, environment), "0") == "1";
+    bool isTrustedExecutable = await trustedExecutablesStore.get(await executable.resolveExecutablePath(commandLine.command), "0") == "1";
     if (isTrustedExecutable) {
       privilege = UserAccessPrivilege.bare; // trusted executables always run as bare, to perform trust requiring operations
     }

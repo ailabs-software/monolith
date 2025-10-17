@@ -3,14 +3,37 @@ import "dart:io";
 import "package:common/constants/user_execution_service_port.dart";
 import "package:common/executable.dart";
 
+/** @fileoverview User execution client for Dart, used on the server side */
+
+class UserExecutionClientResponse
+{
+  final String stdout;
+
+  final String stderr;
+
+  final int? exitCode;
+
+  UserExecutionClientResponse({
+    required String this.stdout,
+    required String this.stderr,
+    required int? this.exitCode
+  });
+}
+
 class UserExecutionClient
 {
-  final String authString;
+  final Map<String, String> environment;
 
-  UserExecutionClient({required String this.authString});
+  UserExecutionClient(Map<String, String> this.environment);
 
-  Future<ProcessResult> execute(CommandLine commandLine, Map<String, String> environment) async
+  /** Provides a stream of events as stdout/stderr is printed by the executable */
+  Stream<UserExecutionClientResponse> execute(CommandLine commandLine) async*
   {
+    String? authString = Platform.environment["AUTH_STRING"];
+    if (authString == null) {
+      throw new Exception("user_execution_client.dart: Missing AUTH_STRING.");
+    }
+
     HttpClient client = new HttpClient();
     client.idleTimeout = new Duration(milliseconds: 0);
     HttpClientRequest request = await client.postUrl(
@@ -25,19 +48,26 @@ class UserExecutionClient
     request.headers.contentType = ContentType.json;
     request.headers.set(HttpHeaders.authorizationHeader, authString);
     request.write( json.encode(commandLine.arguments) );
-    // Send request and get response
     HttpClientResponse response = await request.close();
-    String responseBody = await response.transform(utf8.decoder).join();
+    
     if (response.statusCode != HttpStatus.ok) {
-      throw new Exception(responseBody);
+      String errorBody = await response.transform(utf8.decoder).join();
+      throw new Exception(errorBody);
     }
-    // return result
-    Map<String, Object?> resultMap = json.decode(responseBody);
-    return new ProcessResult( // TODO a better class for what we are returning, typed properly
-      0,
-      resultMap["exit_code"] as int,
-      resultMap["stdout"],
-      resultMap["stderr"]
-    );
+    
+    await for (final String line in response.transform(utf8.decoder).transform(new LineSplitter()) )
+    {
+      if (line.trim().isEmpty) {
+        continue;
+      }
+
+      final Map<String, dynamic> chunk = json.decode(line);
+
+      yield new UserExecutionClientResponse(
+        stdout: chunk["stdout"] ?? "",
+        stderr: chunk["stderr"] ?? "",
+        exitCode: chunk["exit_code"]
+      );
+    }
   }
 }

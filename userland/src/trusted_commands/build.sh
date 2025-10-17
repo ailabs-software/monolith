@@ -1,5 +1,8 @@
 # !/bin/sh
 
+# stop on error
+set -e
+
 # bin dir
 mkdir /opt/monolith/userland/system/trusted
 mkdir /opt/monolith/userland/system/trusted/bin

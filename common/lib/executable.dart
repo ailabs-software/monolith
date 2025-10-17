@@ -31,18 +31,14 @@ class Executable
   /** Add this path in front of all paths */
   final String prefixPath;
 
+  /** The current environment */
+  final Map<String, String> environment;
+
   Executable({
     required String this.rootPath,
-    required String this.prefixPath
+    required String this.prefixPath,
+    required Map<String, String> this.environment
   });
-
-  List<String> _getPathList(Map<String, String> environment)
-  {
-    if (environment.containsKey(PATH_ENV_VAR)) {
-      return environment[PATH_ENV_VAR]!.split(":");
-    }
-    return const [];
-  }
 
   List<String> _getFullPathWithExtensions(String fullPath)
   {
@@ -52,22 +48,52 @@ class Executable
     ];
   }
 
-  Future<String> resolveExecutablePath(String command, Map<String, String> environment) async
+  List<String> _getPathList()
   {
-    List<String> pathList = _getPathList(environment);
-    final bool isRelative = command.startsWith("./");
-    if ( path_util.isAbsolute(command) || isRelative ) {
+    if (environment.containsKey(PATH_ENV_VAR)) {
+      return environment[PATH_ENV_VAR]!.split(":");
+    }
+    return const [];
+  }
+
+  List<String> _getPathsConsideredInExecutableResolutionLoop(String command)
+  {
+    List<String> pathList = _getPathList();
+    if ( path_util.isAbsolute(command) ) {
       pathList = const [];
     }
-    
-    final String? cwd = environment["CWD"];
-    final List<String> searchPaths = [
-      if (cwd != null && isRelative) cwd,
-      "/",
-      ...pathList
-    ];
-    
-    for (String basePath in searchPaths)
+    return ["/", ...pathList];
+  }
+
+  Stream<String> getExecutablesInPathStartingWith(String partialCommand) async*
+  {
+    for (String basePath in _getPathsConsideredInExecutableResolutionLoop(partialCommand) )
+    {
+      Directory directory = new Directory(basePath);
+      if ( await directory.exists() ) {
+        await for (FileSystemEntity entity in directory.list() )
+        {
+          if (
+            entity is File &&
+            _EXECUTABLE_EXTENSIONS.contains( path_util.extension(entity.path) ) &&
+            path_util.basename(entity.path).startsWith(partialCommand)
+          ) {
+            bool partialCommandIsPath = partialCommand.contains("/");
+            if (partialCommandIsPath) {
+              yield entity.path;
+            }
+            else {
+              yield path_util.basenameWithoutExtension(entity.path);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  Future<String> resolveExecutablePath(String command) async
+  {
+    for (String basePath in _getPathsConsideredInExecutableResolutionLoop(command) )
     {
       String fullPath = safeJoinPaths(basePath, command);
       for (String fullPathWithExtension in _getFullPathWithExtensions(fullPath) )
@@ -77,12 +103,12 @@ class Executable
         }
       }
     }
-    throw new MonolithException("command ${command} does not exist in \$PATH (which was: ${pathList.join(":")})");
+    throw new MonolithException("command ${command} does not exist in \$PATH (which was: ${_getPathList().join(":")})");
   }
 
-  Future<CommandLine> resolveExecutable(CommandLine commandLine, Map<String, String> environment) async
+  Future<CommandLine> resolveExecutable(CommandLine commandLine) async
   {
-    String command = await resolveExecutablePath(commandLine.command, environment);
+    String command = await resolveExecutablePath(commandLine.command);
     String extName = path_util.extension(command);
     switch (extName)
     {

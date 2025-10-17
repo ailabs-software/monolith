@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 # Copy in monolith start script
 cp /tmp/src/init/monolith.sh /opt/monolith/monolith.sh
 chmod +x /opt/monolith/monolith.sh
