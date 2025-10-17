@@ -10,7 +10,8 @@ enum _DockerCommands
   ps("ps"),
   run("run"),
   stop("stop"),
-  exec("exec");
+  exec("exec"),
+  compose("compose");
 
   final String command;
 

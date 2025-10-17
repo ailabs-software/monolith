@@ -8,7 +8,7 @@ mkdir /opt/monolith/userland/system/trusted
 mkdir /opt/monolith/userland/system/trusted/bin
 
 # install git and docker
-apk add --no-cache git docker-cli
+apk add --no-cache git docker-cli docker-cli-compose
 
 # build trusted commands
 cd /tmp/src/trusted_commands/
