@@ -3,8 +3,6 @@
 
 const CURSOR = "\u2588"
 const MAX_COMMAND_HISTORY_LEN = 1996;
-// Check if this is a clear command (VT100 escape sequence)
-const _STDOUT_CLEAR_COMMAND_STRING = "\u001b[2J\u001b[H";
 
 const terminalElement = document.getElementById("terminal");
 
@@ -86,7 +84,7 @@ async function handleEnter()
       // updating the environment
       environment = response.environment;
     }
-    else if (response.output === _STDOUT_CLEAR_COMMAND_STRING) {
+    else if (response.term_command === "clear") {
       consoleContentFinal = "";
       consoleContentWorking = "";
       updateDisplay();

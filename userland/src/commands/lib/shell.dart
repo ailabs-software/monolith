@@ -12,11 +12,15 @@ class _ShellResponse
   /** Sent as a header first */
   final Map<String, String> environment;
 
+  /** Command for terminal */
+  final String? termCommand;
+
   /** Output body stream */
   final Stream<String> output;
 
   _ShellResponse({
     required Map<String, String> this.environment,
+    required String? this.termCommand,
     required Stream<String> this.output
   });
 }
@@ -35,6 +39,7 @@ _ShellResponse _init()
 {
   return new _ShellResponse(
     environment: Platform.environment,
+    termCommand: null,
     output: new Stream.value("\$ "),
   );
 }
@@ -47,6 +52,7 @@ Future<_ShellResponse> _changeDirectory(String directory) async
   if ( !await new Directory(newDirectory).exists() ) {
     return new _ShellResponse(
       environment: Platform.environment,
+      termCommand: null,
       output: new Stream.value("No such directory: ${newDirectory}")
     );
   }
@@ -56,6 +62,7 @@ Future<_ShellResponse> _changeDirectory(String directory) async
       // replace the CWD in the current environment
       "CWD": newDirectory
     },
+    termCommand: null,
     output: new Stream.empty()
   );
 }
@@ -96,6 +103,7 @@ _ShellResponse _executeFile(CommandLine commandLine)
 {
   return new _ShellResponse(
     environment: Platform.environment,
+    termCommand: null,
     output: _executeFileOutputStream(commandLine)
   );
 }
@@ -104,6 +112,12 @@ Future<_ShellResponse> _execute(CommandLine commandLine) async
 {
   switch (commandLine.command)
   {
+    case "clear":
+      return new _ShellResponse(
+        environment: Platform.environment,
+        termCommand: "clear",
+        output: new Stream.empty()
+      );
     case "cd":
       return await _changeDirectory(commandLine.arguments.first);
     default:
@@ -161,13 +175,15 @@ Future<_ShellResponse> _run(List<String> arguments) async
       return _execute( _parseCommandString(arguments[1]) );
     case "completion":
       return new _ShellResponse(
+        environment: Platform.environment,
+        termCommand: null,
         output: new Stream.value( json.encode( await _completion(arguments[1] ) ) ),
-        environment: Platform.environment
       );
     default:
       return new _ShellResponse(
+        environment: Platform.environment,
+        termCommand: null,
         output: new Stream.value("shell.aot: Bad action type."),
-        environment: Platform.environment
       );
   }
 }
@@ -179,6 +195,10 @@ Future<void> main(List<String> arguments) async
   // returns the environment with mutations we performed to it
   stdout.writeln( json.encode({"environment": response.environment}) );
   await stdout.flush();
+  if (response.termCommand != null) {
+    stdout.writeln( json.encode({"term_command": response.termCommand}) );
+    await stdout.flush();
+  }
   // output the body (chunked)
   await for (String outputChunk in response.output)
   {
