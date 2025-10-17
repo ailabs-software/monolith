@@ -100,6 +100,29 @@ class _UserExecutionService
     await request.response.flush();
   }
 
+  Future<void> _handleSignal(HttpRequest request, String authString) async
+  {
+    // body format: [signalName, pidString]
+    final List<dynamic> body = (await request.readBodyAsJson()) as List;
+    final String signalName = (body.isNotEmpty ? body[0] : "SIGINT").toString();
+    final int pid = int.parse(body.length > 1 ? body[1].toString() : "0");
+
+    // map name to ProcessSignal
+    ProcessSignal signal = switch (signalName.toUpperCase()) {
+      "SIGTERM" => ProcessSignal.sigterm,
+      "SIGKILL" => ProcessSignal.sigkill,
+      "SIGINT" => ProcessSignal.sigint,
+      _ => throw new Exception("Unknown signal name: $signalName")
+    };
+
+    bool ok = false;
+    if (pid > 0) {
+      ok = Process.killPid(pid, signal);
+    }
+
+    request.response.writeln( json.encode({"ok": ok}) );
+  }
+
   Future<void> _handleExecuteCommandAsUser(HttpRequest request, String path, String authString) async
   {
     // Get arguments from request body
@@ -118,6 +141,10 @@ class _UserExecutionService
     // This line is valid JSON but ignored by clients (no stdout/stderr/exit_code)
     final String _padding = json.encode({"_": "".padRight(8192)});
     request.response.writeln(_padding);
+    await request.response.flush();
+
+    // Send PID early so UIs can capture it
+    request.response.writeln( json.encode({"pid": process.pid}) );
     await request.response.flush();
 
     await _registerStdListeners(request, process);
@@ -140,8 +167,12 @@ class _UserExecutionService
         await _handleReadFileAsUser(request, path, authString);
         break;
       case "POST":
-        // Execute file (must be executable) as the current user.
-        await _handleExecuteCommandAsUser(request, path, authString);
+        if (path == "signal") {
+          await _handleSignal(request, authString);
+        } else {
+          // Execute file (must be executable) as the current user.
+          await _handleExecuteCommandAsUser(request, path, authString);
+        }
         break;
       default:
         // Method not supported

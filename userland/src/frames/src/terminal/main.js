@@ -13,6 +13,8 @@ let consoleContentWorkingIndex = 0; // insertion/cursor index within consoleCont
 // Busy mode: prevent race conditions during command execution
 let isBusy = false;
 let keystrokeQueue = [];
+let cancelRequested = false; // set by Ctrl+C
+let currentPid = null; // PID of running command if provided by server
 
 // History of submitted commands
 let commandHistory = [];
@@ -66,7 +68,6 @@ function clampContenWorkingIndex()
 
 function handleDeleteOrBackspace(offset)
 {
-  console.log(consoleContentWorking.slice(0, consoleContentWorkingIndex + offset), consoleContentWorking.slice(consoleContentWorkingIndex + offset + 1));
   consoleContentWorking = consoleContentWorking.slice(0, consoleContentWorkingIndex + offset) + consoleContentWorking.slice(consoleContentWorkingIndex + offset + 1);
   consoleContentWorkingIndex += offset;
   clampContenWorkingIndex();
@@ -128,6 +129,9 @@ async function handleEnter()
   // Execute command through shell with streaming output
   for await (const response of shellExecuteStream(commandString, environment) )
   {
+    if (response.pid != null) {
+      currentPid = response.pid;
+    }
     // mutually exclusive
     if (response.environment != null) {
       // updating the environment
@@ -143,13 +147,15 @@ async function handleEnter()
       finalise();
     }
   }
-
-  addNewLineToFinaliseIfNecessary();
-  await runInit();
-  
-  // Exit busy mode and replay queued keystrokes
-  isBusy = false;
-  replayQueuedKeystrokes();
+  if (!cancelRequested) {
+    addNewLineToFinaliseIfNecessary();
+    await runInit();
+    // Exit busy mode and replay queued keystrokes
+    isBusy = false;
+    replayQueuedKeystrokes();
+  }
+  cancelRequested = false;
+  currentPid = null;
 }
 
 function completeWithSingleMatch(completion)
@@ -193,10 +199,37 @@ function _moveCursorHorizontally(direction)
   updateDisplay();
 }
 
+async function handleCtrlC()
+{
+  // Render ^C on the current line and start a new prompt
+  resetCursorWithCurrentWorking();
+  $print("^C\n");
+  finalise();
+
+  if (isBusy) {
+    // Signal the server to stop the running command
+    await shellSignal("SIGINT", environment, currentPid);
+    keystrokeQueue = [];
+    cancelRequested = true;
+    isBusy = false;
+  }
+
+  // Show a fresh prompt
+  addNewLineToFinaliseIfNecessary();
+  runInit();
+}
+
 async function handleKeyDown(event)
 {
   if ( !(event.metaKey || event.ctrlKey) ) {
     event.preventDefault();
+  }
+
+  // Always handle Ctrl+C immediately (do not queue)
+  if (event.ctrlKey && (event.key === 'c' || event.keyCode === 67)) {
+    await handleCtrlC();
+    event.preventDefault();
+    return;
   }
 
   // If busy, queue the keystroke for later

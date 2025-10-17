@@ -44,10 +44,17 @@ async function* shellExecuteStream(commandString, environment)
 {
   for await (const chunk of _shellExecuteStreamInternal(commandString, environment) )
   {
-    let responses = getShellResponsesFromChunkStdout(chunk.stdout);
-    for (const response of responses)
-    {
+    if (chunk && typeof chunk.stdout === "string") {
+      const responses = getShellResponsesFromChunkStdout(chunk.stdout);
+      for (const response of responses) {
       yield response;
+      }
+    } else if (chunk && chunk.pid != null) {
+      yield { pid: chunk.pid };
+    } else if (chunk && typeof chunk.stderr === "string" && chunk.stderr.length > 0) {
+      yield { output: chunk.stderr };
+    } else {
+      // ignore padding or exit_code-only chunks
     }
   }
 }
@@ -62,4 +69,18 @@ async function shellCompletion(string, environment)
 {
   // json list of strings expected from shell.aot for completion action
   return JSON.parse( await _collectShellOutput( _shellDo("completion", [string], environment) ) );
+}
+
+// Send a signal (e.g., SIGINT) to the shell to interrupt the running command
+// Optionally target a specific PID if provided
+async function shellSignal(signalName, environment, pid)
+{
+  // fire-and-forget; server should handle interrupting the active process
+  try {
+    const params = pid != null ? [signalName, String(pid)] : [signalName];
+    await _collectShellOutput( _shellDo("signal", params, environment) );
+  } catch (e) {
+    // ignore errors from signaling
+    console.error("Failed to signal shell: " + e);
+  }
 }
