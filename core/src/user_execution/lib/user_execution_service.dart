@@ -48,7 +48,7 @@ class _UserExecutionService
   Future<void> _handleStdOutput(Mutex flushMutex, HttpRequest request, String type, List<int> bytes) async
   {
     final String data = utf8.decode(bytes).replaceAll("\r", "\n");
-    request.response.write(jsonEncode({type: data}) + "\n");
+    request.response.write( json.encode({type: data}) + "\n");
     await flushMutex.protect(request.response.flush);
   }
 
@@ -85,7 +85,7 @@ class _UserExecutionService
   Future<void> _respondWithExitCode(HttpRequest request, Process process) async
   {
     final int exitCode = await process.exitCode;
-    request.response.write( jsonEncode({"exit_code": exitCode}) + "\n" );
+    request.response.write( json.encode({"exit_code": exitCode}) + "\n" );
     await request.response.flush();
   }
 
@@ -105,7 +105,7 @@ class _UserExecutionService
 
     // Initial JSON padding to defeat proxy/browser buffering while staying valid NDJSON
     // This line is valid JSON but ignored by clients (no stdout/stderr/exit_code)
-    final String _padding = jsonEncode({"_": "".padRight(8192)});
+    final String _padding = json.encode({"_": "".padRight(8192)});
     request.response.write(_padding + "\n");
     await request.response.flush();
 

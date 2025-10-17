@@ -75,15 +75,40 @@ async function* execute(command, parameters)
       body: JSON.stringify(parameters)
     }
   );
-  yield* _streamExecuteResponseLines(response).map(JSON.parse);
+  for await (const line of _streamExecuteResponseLines(response) )
+  {
+    let lines = line.split("\n"); // TODO not simple, seems redundant
+    for (const e of lines)
+    {
+      if (e.trim().length > 0) {
+        yield JSON.parse(e);
+      }
+    }
+  }
 }
 
-async function collectStdoutResponse(generator)
+function _pushOutput(result, chunk, key)
 {
-  let result = "";
+  if (chunk[key] != null) {
+    result[key].push(chunk[key]);
+  }
+}
+
+async function collectResponse(generator)
+{
+  let result = {
+    stdout: [],
+    stderr: [],
+    exit_code: null
+  };
   for await (const chunk of generator)
   {
-    result += chunk.stdout ?? "";
+    // append each key to result
+    _pushOutput(result, chunk, "stdout");
+    _pushOutput(result, chunk, "stderr");
+    if (chunk.exit_code != null) {
+      result.exit_code = chunk.exit_code;
+    }
   }
   return result;
 }

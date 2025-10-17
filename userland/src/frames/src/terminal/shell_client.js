@@ -19,13 +19,16 @@ function shellExecuteStream(commandString)
 }
 
 // returns all output at once, once available
-function shellExecute(commandString)
+async function shellExecute(commandString)
 {
-  return collectStdoutResponse( shellExecuteStream(commandString) );
+  let result = await collectResponse( shellExecuteStream(commandString) );
+  console.log("result", result);
+  console.log("result.stdout", result.stdout);
+  return result.stdout.map( (outputChunk) => JSON.parse(outputChunk).output ).join("");
 }
 
-function shellCompletion(string)
+async function shellCompletion(string)
 {
   // json list of strings expected from shell.aot for completion action
-  return JSON.parse( collectStdoutResponse( await _shellDo("completion", [string]) ) );
+  return JSON.parse( ( await collectResponse( _shellDo("completion", [string]) ) ).stdout );
 }

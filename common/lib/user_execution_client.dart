@@ -22,13 +22,18 @@ class UserExecutionClientResponse
 
 class UserExecutionClient
 {
-  final String authString;
+  final Map<String, String> environment;
 
-  UserExecutionClient({required String this.authString});
+  UserExecutionClient(Map<String, String> this.environment);
 
   /** Provides a stream of events as stdout/stderr is printed by the executable */
-  Stream<UserExecutionClientResponse> execute(CommandLine commandLine, Map<String, String> environment) async*
+  Stream<UserExecutionClientResponse> execute(CommandLine commandLine) async*
   {
+    String? authString = Platform.environment["AUTH_STRING"];
+    if (authString == null) {
+      throw new Exception("user_execution_client.dart: Missing AUTH_STRING.");
+    }
+
     HttpClient client = new HttpClient();
     client.idleTimeout = new Duration(milliseconds: 0);
     HttpClientRequest request = await client.postUrl(
@@ -55,19 +60,14 @@ class UserExecutionClient
       if (line.trim().isEmpty) {
         continue;
       }
-      
-      try {
-        final Map<String, dynamic> chunk = json.decode(line);
 
-        yield new UserExecutionClientResponse(
-          stdout: chunk["stdout"] ?? "",
-          stderr: chunk["stderr"] ?? "",
-          exitCode: chunk["exit_code"]
-        );
-      }
-      catch (e) {
-        throw new Exception("Malformed json \nLine: ${line}\n ${e.toString()}");
-      }
+      final Map<String, dynamic> chunk = json.decode(line);
+
+      yield new UserExecutionClientResponse(
+        stdout: chunk["stdout"] ?? "",
+        stderr: chunk["stderr"] ?? "",
+        exitCode: chunk["exit_code"]
+      );
     }
   }
 }
