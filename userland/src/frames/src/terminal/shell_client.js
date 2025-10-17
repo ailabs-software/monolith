@@ -7,10 +7,26 @@ function _shellDo(action, parameters, environment)
   return execute("/system/bin/shell.aot", [action, ...parameters], environment);
 }
 
+// return array of {"environment": ...} / {"output": ...} objects
+function getShellResponsesFromChunkStdout(stdout)
+{
+  // each newline is an output
+  return (
+    stdout.split("\n")
+    .filter( (e) => e.length > 0 ) // remove empty trailing line
+    .map( (outputChunk) => JSON.parse(outputChunk) )
+  );
+}
+
 async function _collectShellOutput(generator)
 {
   let result = await collectResponse(generator);
-  return result.stdout.map( (outputChunk) => JSON.parse(outputChunk).output ).join("");
+  // each newline is an output
+  return (
+    getShellResponsesFromChunkStdout(result.stdout)
+    .map( (e) => e.output )
+    .join("")
+  );
 }
 
 function shellInit(environment)
@@ -24,18 +40,19 @@ function _shellExecuteStreamInternal(commandString, environment)
 }
 
 // returns a generator that yields stream of output
-// yields output
 async function* shellExecuteStream(commandString, environment)
 {
-  for await (const response of _shellExecuteStreamInternal(commandString, environment) )
+  for await (const chunk of _shellExecuteStreamInternal(commandString, environment) )
   {
-    console.log("shellExecuteStream for response:", response);
-    let responseParsed = JSON.parse(response.stdout);
-    yield responseParsed;
+    let responses = getShellResponsesFromChunkStdout(chunk.stdout);
+    for (const response of responses)
+    {
+      yield response;
+    }
   }
 }
 
-// returns all output at once, once available
+// returns all output at once (from stdout), once available
 async function shellExecute(commandString, environment)
 {
   return _collectShellOutput( _shellExecuteStreamInternal(commandString, environment) );

@@ -73,10 +73,7 @@ function _pushOutput(result, chunk, key)
   if (chunk[key] != null) {
     // add each stdout line as a different entry in output,
     // as multiple lines often are combined in a single chunk
-    result[key].push(
-      ...chunk[key].split("\n")
-      .filter( (line) => line.length > 0 )
-    );
+    result[key].push(chunk[key]);
   }
 }
 
@@ -97,5 +94,9 @@ async function collectResponse(generator)
       result.exit_code = chunk.exit_code;
     }
   }
-  return result;
+  return {
+    stdout: result.stdout.join(""),
+    stderr: result.stderr.join(""),
+    exit_code: result.exit_code
+  };
 }

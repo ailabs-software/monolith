@@ -78,20 +78,21 @@ async function handleEnter()
   console.log(`running ${commandString}`);
   
   // Execute command through shell with streaming output
-  for await (const chunk of shellExecuteStream(commandString, environment) )
+  for await (const response of shellExecuteStream(commandString, environment) )
   {
-    console.log("received chunk", chunk);
-    if (chunk.output === _STDOUT_CLEAR_COMMAND_STRING) {
+    console.log("received shell response", response);
+    // mutually exclusive
+    if (response.environment != null) {
+      // updating the environment
+      environment = response.environment;
+    }
+    else if (response.output === _STDOUT_CLEAR_COMMAND_STRING) {
       consoleContentFinal = "";
       consoleContentWorking = "";
       updateDisplay();
     }
-    else if (chunk.environment != null) {
-      // updating the environment
-      environment = chunk.environment;
-    }
-    else if (chunk.output != null) {
-      $print(chunk.output);
+    else if (response.output != null) {
+      $print(response.output);
       finalise();
     }
   }
