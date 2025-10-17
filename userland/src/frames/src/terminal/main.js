@@ -51,6 +51,13 @@ function finalise()
   consoleContentWorkingIndex = 0; // reset index on finalise
 }
 
+function addNewLineToFinaliseIfNecessary()
+{
+  if ( !consoleContentFinal.endsWith("\n") ) {
+    consoleContentFinal += "\n";
+  }
+}
+
 function clampContenWorkingIndex()
 {
   consoleContentWorkingIndex = Math.max(0, Math.min(consoleContentWorkingIndex, consoleContentWorking.length));
@@ -136,6 +143,7 @@ async function handleEnter()
     }
   }
 
+  addNewLineToFinaliseIfNecessary();
   await runInit();
   
   // Exit busy mode and replay queued keystrokes
