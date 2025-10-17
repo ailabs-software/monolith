@@ -3,6 +3,8 @@
 
 const CURSOR = "\u2588"
 const MAX_COMMAND_HISTORY_LEN = 1996;
+// Check if this is a clear command (VT100 escape sequence)
+const _STDOUT_CLEAR_COMMAND_STRING = "\u001b[2J\u001b[H";
 
 const terminalElement = document.getElementById("terminal");
 
@@ -72,25 +74,28 @@ async function handleEnter()
   $print("\n");
   let commandString = consoleContentWorking.trimEnd();
   finalise();
-//<<<<<<< HEAD
 
   console.log(`running ${commandString}`);
   
   // Execute command through shell with streaming output
-  await doExecute(commandString, (chunk) => {
+  for await (const chunk of shellExecuteStream(commandString, environment) )
+  {
     console.log("received chunk", chunk);
-    // Check if this is a clear command (VT100 escape sequence)
-    if (chunk.includes("\u001b[2J\u001b[H")) {
+    if (chunk.output === _STDOUT_CLEAR_COMMAND_STRING) {
       consoleContentFinal = "";
       consoleContentWorking = "";
       updateDisplay();
     }
-    else {
-      $print(chunk);
+    else if (chunk.environment != null) {
+      // updating the environment
+      environment = chunk.environment;
     }
-  });
-  
-  finalise();
+    else if (chunk.output != null) {
+      $print(chunk.output);
+      finalise();
+    }
+  }
+
 /*=======
   
   // Enter busy mode
@@ -130,14 +135,14 @@ async function completeWithMultipleMatches(completionList)
   let savedInput = consoleContentWorking;
   finalise();
   consoleContentFinal += "\n" + completionList.join("\n") + "\n";
-  $print( await doInit() );
+  $print( await shellInit(environment) );
   finalise();
   consoleContentWorking = savedInput;
 }
 
 async function handleTab()
 {
-  let completionList = await doCompletion(consoleContentWorking);
+  let completionList = await shellCompletion(consoleContentWorking, environment);
   if (completionList.length === 1) {
     completeWithSingleMatch(completionList[0]);
   }
@@ -237,7 +242,7 @@ function replayQueuedKeystrokes()
 async function runInit()
 {
   // init
-  $print( await shellInit() );
+  $print( await shellInit(environment) );
   finalise();
 }
 

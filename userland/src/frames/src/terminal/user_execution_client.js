@@ -42,8 +42,19 @@ async function* _streamExecuteResponseLines(response)
 
 // generator that yields a series of these objects::
 // {"stdout": "string", "stderr": "string", "exit_code": 0}
-async function* execute(command, parameters)
+async function* execute(command, parameters, environment)
 {
+  // runtime type checking is such fun
+  if (command == null) {
+    throw new Error("command is required");
+  }
+  if (parameters == null) {
+    throw new Error("parameters is required");
+  }
+  if (environment == null) {
+    throw new Error("environment is required");
+  }
+
   const response = await fetch(
     "/~" + command + "?" + new URLSearchParams(environment).toString(),
     {
@@ -78,6 +89,7 @@ async function collectResponse(generator)
   };
   for await (const chunk of generator)
   {
+    console.log("chunk for loop", chunk);
     // append each key to result
     _pushOutput(result, chunk, "stdout");
     _pushOutput(result, chunk, "stderr");
