@@ -16,6 +16,24 @@ import "package:user_execution/user_list_accessor.dart";
  *      or the current user is executing a trusted executable.
  * */
 
+class _StdOutputHandler
+{
+  final Mutex flushMutex;
+
+  final HttpRequest request;
+
+  final String type;
+
+  _StdOutputHandler(Mutex this.flushMutex, HttpRequest this.request, String this.type);
+
+  Future<void> handleOutput(List<int> bytes) async
+  {
+    final String data = utf8.decode(bytes);
+    request.response.writeln( json.encode({type: data}) );
+    await flushMutex.protect(request.response.flush);
+  }
+}
+
 class _UserExecutionService
 {
   Future<void> _handleReadFileAsUser(HttpRequest request, String path, String authString) async
@@ -57,26 +75,19 @@ class _UserExecutionService
     request.response.headers.set("Content-Encoding", "identity");
   }
 
-  Future<void> _handleStdOutput(Mutex flushMutex, HttpRequest request, String type, List<int> bytes) async
-  {
-    final String data = utf8.decode(bytes);
-    request.response.writeln( json.encode({type: data}) );
-    await flushMutex.protect(request.response.flush);
-  }
-
   Future<void> _registerStdListeners(HttpRequest request, Process process) async
   {
     final Mutex flushMutex = new Mutex();
 
     // Stream stdout chunks as they arrive (use raw bytes, flush per chunk)
-    Future<void> stdoutDone = process.stdout.listen((List<int> bytes) async {
-      _handleStdOutput(flushMutex, request, "stdout", bytes);
-    }).asFuture();
+    Future<void> stdoutDone = process.stdout.listen(
+      new _StdOutputHandler(flushMutex, request, "stdout").handleOutput
+    ).asFuture();
     
     // Stream stderr chunks as they arrive (use raw bytes, flush per chunk)
-    Future<void> stderrDone = process.stderr.listen((List<int> bytes) async {
-      _handleStdOutput(flushMutex, request, "stderr", bytes);
-    }).asFuture();
+    Future<void> stderrDone = process.stderr.listen(
+      new _StdOutputHandler(flushMutex, request, "stderr").handleOutput
+    ).asFuture();
     
     // Wait for both streams and process to complete
     await Future.wait([stdoutDone, stderrDone]);

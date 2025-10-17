@@ -86,7 +86,6 @@ async function collectResponse(generator)
   };
   for await (const chunk of generator)
   {
-    console.log("chunk for loop", chunk);
     // append each key to result
     _pushOutput(result, chunk, "stdout");
     _pushOutput(result, chunk, "stderr");
