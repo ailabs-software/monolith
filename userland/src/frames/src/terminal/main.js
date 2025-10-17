@@ -107,6 +107,7 @@ function handleRecallCommandHistory(direction)
 
 async function handleEnter()
 {
+  resetCursorWithCurrentWorking();
   $print("\n");
   let commandString = consoleContentWorking.trimEnd();
   finalise();
