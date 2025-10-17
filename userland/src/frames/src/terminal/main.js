@@ -110,21 +110,31 @@ async function handleEnter()
   $print("\n");
   let commandString = consoleContentWorking.trimEnd();
   finalise();
-  
+
   // Enter busy mode
   isBusy = true;
 
   commandHistoryAdd(commandString);
-  let output = await doExecute(commandString);
-  let isClearCommand = output === "\u001b[2J\u001b[H\n";
-  if (isClearCommand) {
-    consoleContentFinal = "";
-    updateDisplay();
+  
+  // Execute command through shell with streaming output
+  for await (const response of shellExecuteStream(commandString, environment) )
+  {
+    // mutually exclusive
+    if (response.environment != null) {
+      // updating the environment
+      environment = response.environment;
+    }
+    else if (response.term_command === "clear") {
+      consoleContentFinal = "";
+      consoleContentWorking = "";
+      updateDisplay();
+    }
+    else if (response.output != null) {
+      $print(response.output);
+      finalise();
+    }
   }
-  else {
-    $print(output);
-    finalise();
-  }
+
   await runInit();
   
   // Exit busy mode and replay queued keystrokes
@@ -147,7 +157,7 @@ async function completeWithMultipleMatches(completionList)
   let savedInput = consoleContentWorking;
   finalise();
   consoleContentFinal += "\n" + completionList.join("\n") + "\n";
-  $print( await doInit() );
+  $print( await shellInit(environment) );
   finalise();
   consoleContentWorking = savedInput;
   resetCursorWithCurrentWorking();
@@ -155,7 +165,7 @@ async function completeWithMultipleMatches(completionList)
 
 async function handleTab()
 {
-  let completionList = await doCompletion(consoleContentWorking);
+  let completionList = await shellCompletion(consoleContentWorking, environment);
   if (completionList.length === 1) {
     completeWithSingleMatch(completionList[0]);
   }
@@ -279,7 +289,7 @@ function replayQueuedKeystrokes()
 async function runInit()
 {
   // init
-  $print( await doInit() );
+  $print( await shellInit(environment) );
   finalise();
 }
 

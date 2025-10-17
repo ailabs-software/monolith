@@ -4,6 +4,7 @@ import "package:mime/mime.dart";
 import "package:common/http_request_extension.dart";
 import "package:common/executable.dart";
 import "package:common/constants/user_execution_service_port.dart";
+import "package:mutex/mutex.dart";
 import "package:user_execution/execute_as.dart";
 import "package:user_execution/user_list_accessor.dart";
 
@@ -14,6 +15,24 @@ import "package:user_execution/user_list_accessor.dart";
  *      such as warranted when the current user has root access,
  *      or the current user is executing a trusted executable.
  * */
+
+class _StdOutputHandler
+{
+  final Mutex flushMutex;
+
+  final HttpRequest request;
+
+  final String type;
+
+  _StdOutputHandler(Mutex this.flushMutex, HttpRequest this.request, String this.type);
+
+  Future<void> handleOutput(List<int> bytes) async
+  {
+    final String data = utf8.decode(bytes);
+    request.response.writeln( json.encode({type: data}) );
+    await flushMutex.protect(request.response.flush);
+  }
+}
 
 class _UserExecutionService
 {
@@ -44,6 +63,43 @@ class _UserExecutionService
     request.response.add(fileBytes);
   }
 
+  void _setChunkStreamingHeaders(HttpRequest request)
+  {
+    // Configure for true streaming (disable output buffering and discourage proxy buffering)
+    request.response.bufferOutput = false;
+    request.response.headers.contentType = new ContentType("application", "x-ndjson", charset: "utf-8");
+    request.response.headers.set("Cache-Control", "no-cache, no-transform");
+    request.response.headers.set("Connection", "keep-alive");
+    request.response.headers.set("X-Accel-Buffering", "no");
+    request.response.headers.chunkedTransferEncoding = true; // explicit chunked
+    request.response.headers.set("Content-Encoding", "identity");
+  }
+
+  Future<void> _registerStdListeners(HttpRequest request, Process process) async
+  {
+    final Mutex flushMutex = new Mutex();
+
+    // Stream stdout chunks as they arrive (use raw bytes, flush per chunk)
+    Future<void> stdoutDone = process.stdout.listen(
+      new _StdOutputHandler(flushMutex, request, "stdout").handleOutput
+    ).asFuture();
+    
+    // Stream stderr chunks as they arrive (use raw bytes, flush per chunk)
+    Future<void> stderrDone = process.stderr.listen(
+      new _StdOutputHandler(flushMutex, request, "stderr").handleOutput
+    ).asFuture();
+    
+    // Wait for both streams and process to complete
+    await Future.wait([stdoutDone, stderrDone]);
+  }
+
+  Future<void> _respondWithExitCode(HttpRequest request, Process process) async
+  {
+    final int exitCode = await process.exitCode;
+    request.response.writeln( json.encode({"exit_code": exitCode}) );
+    await request.response.flush();
+  }
+
   Future<void> _handleExecuteCommandAsUser(HttpRequest request, String path, String authString) async
   {
     // Get arguments from request body
@@ -52,26 +108,21 @@ class _UserExecutionService
     ];
     // Get environment from query string
     Map<String, String> environment = request.uri.queryParameters;
+    
     // Execute command as this user
     Process process = await ExecuteAs.executeAsUser(authString, new CommandLine(command: path, arguments: arguments), environment);
 
-    // Collect stdout and stderr
-    String stdout = await process.stdout.transform(utf8.decoder).join();
-    String stderr = await process.stderr.transform(utf8.decoder).join();
-    
-    // Wait for process to complete and get exit code
-    int exitCode = await process.exitCode;
-    
-    // Create JSON response
-    Map<String, Object?> response = {
-      "stdout": stdout,
-      "stderr": stderr,
-      "exit_code": exitCode
-    };
-    
-    // Send JSON response
-    request.response.headers.contentType = ContentType.json;
-    request.response.write(jsonEncode(response));
+    _setChunkStreamingHeaders(request);
+
+    // Initial JSON padding to defeat proxy/browser buffering while staying valid NDJSON
+    // This line is valid JSON but ignored by clients (no stdout/stderr/exit_code)
+    final String _padding = json.encode({"_": "".padRight(8192)});
+    request.response.writeln(_padding);
+    await request.response.flush();
+
+    await _registerStdListeners(request, process);
+
+    await _respondWithExitCode(request, process);
   }
 
   Future<void> _routeRequest(HttpRequest request, String authString) async
@@ -119,8 +170,7 @@ class _UserExecutionService
         request.response.statusCode = HttpStatus.unauthorized;
         request.response.writeln("Invalid or missing required header ${HttpHeaders.authorizationHeader} for user auth string.");
       }
-      await request.response.flush();
-      await request.response.close();
+      await request.response.close(); // close automatically calls flush
     }
     catch (e, s) {
       print("User execution service unhandled exception:");
@@ -130,8 +180,7 @@ class _UserExecutionService
       request.response.statusCode = HttpStatus.badRequest;
       request.response.writeln("User execution service unhandled exception:");
       request.response.writeln(e);
-      await request.response.flush();
-      await request.response.close();
+      await request.response.close(); // close automatically calls flush
     }
   }
 }
