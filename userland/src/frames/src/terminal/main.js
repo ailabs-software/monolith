@@ -73,12 +73,14 @@ async function handleEnter()
   let commandString = consoleContentWorking.trimEnd();
   finalise();
 
-  console.log(`running ${commandString}`);
+  // Enter busy mode
+  isBusy = true;
+
+  commandHistoryAdd(commandString);
   
   // Execute command through shell with streaming output
   for await (const response of shellExecuteStream(commandString, environment) )
   {
-    console.log("received shell response", response);
     // mutually exclusive
     if (response.environment != null) {
       // updating the environment
@@ -94,24 +96,6 @@ async function handleEnter()
       finalise();
     }
   }
-
-/*=======
-  
-  // Enter busy mode
-  isBusy = true;
-
-  commandHistoryAdd(commandString);
-  let output = await doExecute(commandString);
-  let isClearCommand = output === "\u001b[2J\u001b[H\n";
-  if (isClearCommand) {
-    consoleContentFinal = "";
-    updateDisplay();
-  }
-  else {
-    $print(output);
-    finalise();
-  }
->>>>>>> main*/
 
   await runInit();
   
