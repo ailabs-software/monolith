@@ -237,7 +237,7 @@ function replayQueuedKeystrokes()
 async function runInit()
 {
   // init
-  $print( await doInit() );
+  $print( await shellInit() );
   finalise();
 }
 

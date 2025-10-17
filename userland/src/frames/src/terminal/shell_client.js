@@ -7,9 +7,15 @@ function _shellDo(action, parameters)
   return execute("/system/bin/shell.aot", [action, ...parameters]);
 }
 
+async function _collectShellOutput(generator)
+{
+  let result = await collectResponse(generator);
+  return result.stdout.map( (outputChunk) => JSON.parse(outputChunk).output ).join("");
+}
+
 function shellInit()
 {
-  return _shellDo("init", []);
+  return _collectShellOutput( _shellDo("init", []) );
 }
 
 // returns a generator that yields stream of output
@@ -21,14 +27,11 @@ function shellExecuteStream(commandString)
 // returns all output at once, once available
 async function shellExecute(commandString)
 {
-  let result = await collectResponse( shellExecuteStream(commandString) );
-  console.log("result", result);
-  console.log("result.stdout", result.stdout);
-  return result.stdout.map( (outputChunk) => JSON.parse(outputChunk).output ).join("");
+  return _collectShellOutput( shellExecuteStream(commandString) );
 }
 
 async function shellCompletion(string)
 {
   // json list of strings expected from shell.aot for completion action
-  return JSON.parse( ( await collectResponse( _shellDo("completion", [string]) ) ).stdout );
+  return JSON.parse( await _collectShellOutput( _shellDo("completion", [string]) ) );
 }

@@ -45,23 +45,23 @@ class _UserExecutionService
     request.response.add(fileBytes);
   }
 
-  Future<void> _handleStdOutput(Mutex flushMutex, HttpRequest request, String type, List<int> bytes) async
-  {
-    final String data = utf8.decode(bytes).replaceAll("\r", "\n");
-    request.response.write( json.encode({type: data}) + "\n");
-    await flushMutex.protect(request.response.flush);
-  }
-
   void _setChunkStreamingHeaders(HttpRequest request)
   {
     // Configure for true streaming (disable output buffering and discourage proxy buffering)
     request.response.bufferOutput = false;
-    request.response.headers.contentType = ContentType("application", "x-ndjson", charset: "utf-8");
+    request.response.headers.contentType = new ContentType("application", "x-ndjson", charset: "utf-8");
     request.response.headers.set("Cache-Control", "no-cache, no-transform");
     request.response.headers.set("Connection", "keep-alive");
     request.response.headers.set("X-Accel-Buffering", "no");
     request.response.headers.chunkedTransferEncoding = true; // explicit chunked
     request.response.headers.set("Content-Encoding", "identity");
+  }
+
+  Future<void> _handleStdOutput(Mutex flushMutex, HttpRequest request, String type, List<int> bytes) async
+  {
+    final String data = utf8.decode(bytes);
+    request.response.writeln( json.encode({type: data}) );
+    await flushMutex.protect(request.response.flush);
   }
 
   Future<void> _registerStdListeners(HttpRequest request, Process process) async
@@ -85,7 +85,7 @@ class _UserExecutionService
   Future<void> _respondWithExitCode(HttpRequest request, Process process) async
   {
     final int exitCode = await process.exitCode;
-    request.response.write( json.encode({"exit_code": exitCode}) + "\n" );
+    request.response.writeln( json.encode({"exit_code": exitCode}) );
     await request.response.flush();
   }
 
@@ -106,7 +106,7 @@ class _UserExecutionService
     // Initial JSON padding to defeat proxy/browser buffering while staying valid NDJSON
     // This line is valid JSON but ignored by clients (no stdout/stderr/exit_code)
     final String _padding = json.encode({"_": "".padRight(8192)});
-    request.response.write(_padding + "\n");
+    request.response.writeln(_padding);
     await request.response.flush();
 
     await _registerStdListeners(request, process);
