@@ -78,10 +78,10 @@ async function* execute(command, parameters)
   yield* _streamExecuteResponseLines(response).map(JSON.parse);
 }
 
-function collectStdoutResponse(generator)
+async function collectStdoutResponse(generator)
 {
   let result = "";
-  for (const chunk of generator)
+  for await (const chunk of generator)
   {
     result += chunk.stdout ?? "";
   }

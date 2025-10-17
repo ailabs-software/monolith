@@ -147,7 +147,7 @@ class FrameButton
 
 async function _load()
 {
-  let frameNames = ( await doExecute("ls /system/frames/") ).trim().split("\n");
+  let frameNames = ( await shellExecute("ls /system/frames/") ).trim().split("\n");
 
   for (let frameName of frameNames)
   {
