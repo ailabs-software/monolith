@@ -53,7 +53,8 @@ function finalise()
 
 function addNewLineToFinaliseIfNecessary()
 {
-  if ( !consoleContentFinal.endsWith("\n") ) {
+  if ( consoleContentFinal.length > 0 &&
+       !consoleContentFinal.endsWith("\n") ) {
     consoleContentFinal += "\n";
   }
 }
