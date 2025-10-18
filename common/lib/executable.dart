@@ -8,7 +8,7 @@ import "package:common/util.dart";
 
 const List<String> _EXECUTABLE_EXTENSIONS = [".exe", ".sh", ".aot", ".js", ".alias"];
 const String _DART_AOT_RUNTIME_PATH = "/system/dart_sdk/bin/dartaotruntime";
-const String _NODE_JS_PATH = "/system/node_js/bin/node.exe";
+const String _NODE_JS_PATH = "/sdk/node_js/bin/node.exe";
 const String PATH_ENV_VAR = "PATH";
 
 class CommandLine
@@ -17,9 +17,12 @@ class CommandLine
 
   List<String> arguments;
 
+  Map<String, String> environmentOverrides;
+
   CommandLine({
     required String this.command,
-    required List<String> this.arguments
+    required List<String> this.arguments,
+    Map<String, String> this.environmentOverrides = const {}
   });
 }
 
@@ -135,10 +138,13 @@ class Executable
           arguments: [command, ...commandLine.arguments]
         );
       case ".alias":
-        List<String> aliasedCommandLine = (json.decode( ( new File( safeJoinPaths(rootPath, command) ) ).readAsStringSync()) as List).cast<String>();
+        Map aliasFile = (json.decode( ( new File( safeJoinPaths(rootPath, command) ) ).readAsStringSync()) as Map);
+        List<String> aliasedCommandLine = (aliasFile["command_line"] as List).cast<String>();
+        Map<String, String> environmentOverrides = (aliasFile["environment_overrides"] as Map).cast<String, String>();
         return new CommandLine(
           command: safeJoinPaths(prefixPath, aliasedCommandLine[0]),
-          arguments: [...aliasedCommandLine.sublist(1), ...commandLine.arguments]
+          arguments: [...aliasedCommandLine.sublist(1), ...commandLine.arguments],
+          environmentOverrides: environmentOverrides
         );
       default:
         throw new Exception("execute: Unsupported extension: ${extName}");

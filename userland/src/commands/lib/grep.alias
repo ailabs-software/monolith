@@ -1,1 +1,4 @@
-["/system/bin/busybox.exe", "grep"]
+{
+  "command_line": ["/system/bin/busybox.exe", "grep"],
+  "environment_overrides": {}
+}

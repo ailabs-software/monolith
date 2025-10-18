@@ -1,0 +1,4 @@
+{
+  "command_line": ["/system/bin/busybox.exe", "rm"],
+  "environment_overrides": {}
+}

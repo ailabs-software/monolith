@@ -1,1 +1,4 @@
-["/system/bin/busybox.exe", "pwd"]
+{
+  "command_line": ["/system/bin/busybox.exe", "pwd"],
+  "environment_overrides": {}
+}

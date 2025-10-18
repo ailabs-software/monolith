@@ -1,0 +1,6 @@
+{
+  "command_line": ["/sdk/bash/lib/bash.exe"],
+  "environment_overrides": {
+    "BASH_ENV": "/sdk/bash/lib/compat.sh"
+  }
+}

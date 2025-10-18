@@ -4,6 +4,6 @@
 // managed by main.js
 var environment = {
   "CWD": "/",
-  "PATH": "/system/bin/:/system/node_js/bin/:/system/trusted/bin/",
+  "PATH": "/system/bin/:/sdk/node_js/bin/:/sdk/bash/bin/:/sdk/trusted/bin/:/sdk/build_guest/bin/",
   "MONOLITH": "1"
 };

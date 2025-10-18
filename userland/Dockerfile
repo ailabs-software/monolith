@@ -24,10 +24,13 @@ RUN mkdir -p /opt/monolith/userland/system/dart_sdk/bin/ && \
 WORKDIR /tmp/src/
 RUN /tmp/src/init/build.sh
 RUN /tmp/src/commands/build.sh
-RUN /tmp/src/trusted_commands/build.sh
-RUN /tmp/src/node_js/build.sh
-RUN /tmp/src/vs_code/build.sh
 RUN /tmp/src/frames/build.sh
+# build userland sdk
+RUN mkdir /opt/monolith/userland/sdk/
+RUN /tmp/src/sdk/trusted_commands/build.sh
+RUN /tmp/src/sdk/node_js/build.sh
+RUN /tmp/src/sdk/bash/build.sh
+RUN /tmp/src/sdk/vs_code/build.sh
 
 # Make all files in userland accessible as read only standard access
 RUN /opt/monolith/core/dart_sdk/bin/dartaotruntime /opt/monolith/core/bin/set_access.aot "**" readable

@@ -1,1 +1,4 @@
-["/system/bin/busybox.exe", "printenv"]
+{
+  "command_line": ["/system/bin/busybox.exe", "printenv"],
+  "environment_overrides": {}
+}

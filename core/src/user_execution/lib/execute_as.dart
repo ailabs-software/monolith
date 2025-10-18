@@ -26,7 +26,7 @@ class ExecuteAs
       return Process.start(
         commandLine.command,
         commandLine.arguments,
-        environment: environment,
+        environment: {...environment, ...commandLine.environmentOverrides},
         workingDirectory: safeJoinPaths(file_system_source_path, workingDirectory)
       );
     }
@@ -37,7 +37,7 @@ class ExecuteAs
     return Process.start(
       "/opt/monolith/core/bin/monolith_chroot",
       <String>[_getMountPointFromPrivilegeLevel(privilege), workingDirectory, commandLine.command, ...commandLine.arguments],
-      environment: environment,
+      environment: {...environment, ...commandLine.environmentOverrides},
       workingDirectory: "/"
     );
   }

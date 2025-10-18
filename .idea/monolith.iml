@@ -27,9 +27,9 @@
       <excludeFolder url="file://$MODULE_DIR$/userland/src/frames/.dart_tool" />
       <excludeFolder url="file://$MODULE_DIR$/userland/src/frames/.pub" />
       <excludeFolder url="file://$MODULE_DIR$/userland/src/frames/build" />
-      <excludeFolder url="file://$MODULE_DIR$/userland/src/trusted_commands/.dart_tool" />
-      <excludeFolder url="file://$MODULE_DIR$/userland/src/trusted_commands/.pub" />
-      <excludeFolder url="file://$MODULE_DIR$/userland/src/trusted_commands/build" />
+      <excludeFolder url="file://$MODULE_DIR$/userland/src/sdk/trusted_commands/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/userland/src/sdk/trusted_commands/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/userland/src/sdk/trusted_commands/build" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

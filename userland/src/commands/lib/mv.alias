@@ -1,1 +1,4 @@
-["/system/bin/busybox.exe", "mv"]
+{
+  "command_line": ["/system/bin/busybox.exe", "mv"],
+  "environment_overrides": {}
+}
