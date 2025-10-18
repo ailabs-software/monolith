@@ -32,5 +32,6 @@ function mv()
 # trusted command wrappers for use in bash
 function git()
 {
-  /system/dart_sdk/bin/dartaotruntime /sdk/trusted/bin/git.aot "$@"
+  # run git through user exec service so runs as trusted command
+  /system/dart_sdk/bin/dartaotruntime /system/bin/run.aot git "$@"
 }
