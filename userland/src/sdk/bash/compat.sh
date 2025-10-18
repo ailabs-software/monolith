@@ -1,5 +1,5 @@
 
 function rm()
 {
-  echo "Custom global command"
+  /system/bin/busybox.exe rm "$@"
 }
