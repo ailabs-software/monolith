@@ -1,8 +1,7 @@
 
 mkdir -p /opt/ailabs/
 
-cd /opt/ailabs/
+mkdir -p /opt/ailabs/credentials/
+git clone https://github.com/ailabs-software/development_credentials /opt/ailabs/credentials/development_credentials
 
-git clone https://github.com/ailabs-software/development_credentials credentials
-
-git clone https://github.com/ailabs-software/source
+git clone https://github.com/ailabs-software/source /opt/ailabs/source

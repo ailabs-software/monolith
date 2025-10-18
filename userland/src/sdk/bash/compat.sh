@@ -1,4 +1,9 @@
 
+function bash()
+{
+  /sdk/bash/lib/bash.exe "$@"
+}
+
 function basename()
 {
   /system/bin/busybox.exe basename "$@"

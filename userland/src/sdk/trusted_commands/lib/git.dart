@@ -1,4 +1,6 @@
 import "dart:io";
+import "package:common/constants/file_system_source_path.dart";
+import "package:common/util.dart";
 import "package:common/command.dart";
 import "package:mutex/mutex.dart";
 
@@ -52,6 +54,16 @@ class _GitWrapper extends Command
     return transformedArgs;
   }
 
+  List<String> _getGitCloneArguments(List<String> args)
+  {
+    String remote = args[0];
+    String destination = args[1];
+    return [
+      remote,
+      safeJoinPaths(file_system_source_path, destination)
+    ];
+  }
+
   List<String> _getFinalArguments(List<String> args)
   {
     final List<String> transformedArgs = _transformArgsToTokenUrl(args);
@@ -62,7 +74,8 @@ class _GitWrapper extends Command
       if (isProgressy) ...["-c", "progress.delay=0"],
       gitCommand.command,
       if (isProgressy && !transformedArgs.contains("--progress")) "--progress",
-      ...transformedArgs,
+      if (gitCommand == _GitCommands.clone) ..._getGitCloneArguments(transformedArgs)
+      else ...transformedArgs
     ];
   }
 
