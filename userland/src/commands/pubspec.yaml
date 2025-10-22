@@ -8,5 +8,6 @@ environment:
 dependencies:
   meta: ^1.7.0
   path: ^1.8.0
+  glob: ^2.1.0
   common:
     path: ../common

@@ -3,9 +3,9 @@ import "dart:io";
 import "package:path/path.dart" as path_util;
 import "package:glob/glob.dart";
 import "package:glob/list_local_fs.dart";
-import "package:common/monolith_exception.dart";
 import "package:common/executable.dart";
 import "package:common/user_execution_client.dart";
+import "command_parser.dart";
 
 class _ShellResponse
 {
@@ -25,15 +25,7 @@ class _ShellResponse
   });
 }
 
-CommandLine _parseCommandString(String commandString)
-{
-  // TODO handle shell escaping quotes
-  List<String> parts = commandString.split(" ");
-  return new CommandLine(
-    command: parts.first,
-    arguments: parts.sublist(1).where( (String part) => part.isNotEmpty ).toList()
-  );
-}
+final CommandParser _commandParser = new CommandParser();
 
 _ShellResponse _init()
 {
@@ -85,13 +77,60 @@ String _formatExecuteFileOutput(CommandLine commandLine, UserExecutionClientResp
   return sb.toString();
 }
 
-Stream<String> _executeFileOutputStream(CommandLine commandLine) async*
+/** Redirects the command output to a file */
+Stream<String> _redirectOutputToFileStream(CommandLine commandLine, String outputFile, UserExecutionClient client) async*
+{
+  // Redirect output to file
+  String cwd = Platform.environment["CWD"]!;
+  String filePath = path_util.isAbsolute(outputFile)
+    ? outputFile
+    : path_util.join(cwd, outputFile);
+  
+  IOSink? fileSink;
+  try {
+    File file = new File(filePath);
+    fileSink = file.openWrite(mode: FileMode.write);
+    
+    await for (UserExecutionClientResponse response in client.execute(commandLine) )
+    {
+      // Write stdout to file
+      String stdout = response.stdout.toString();
+      if (stdout.isNotEmpty) {
+        fileSink.write(stdout);
+      }
+      
+      // Still show stderr in the terminal
+      String stderr = response.stderr.toString();
+      if (stderr.isNotEmpty) {
+        yield "[${commandLine.command} error]\n";
+        yield stderr.trimRight() + "\n";
+      }
+      
+      if (response.exitCode != null && response.exitCode != 0) {
+        yield "[${commandLine.command}: exited with code ${response.exitCode}]\n";
+      }
+    }
+    
+    await fileSink.flush();
+  }
+  finally {
+    await fileSink?.close();
+  }
+}
+
+Stream<String> _executeFileOutputStream(CommandLine commandLine, String? outputFile) async*
 {
   try {
     UserExecutionClient client = new UserExecutionClient(Platform.environment);
-    await for (UserExecutionClientResponse response in client.execute(commandLine) )
-    {
-      yield _formatExecuteFileOutput(commandLine, response);
+    
+    if (outputFile != null) {
+      yield* _redirectOutputToFileStream(commandLine, outputFile, client);
+    } else {
+      // Normal output to terminal
+      await for (UserExecutionClientResponse response in client.execute(commandLine) )
+      {
+        yield _formatExecuteFileOutput(commandLine, response);
+      }
     }
   }
   catch (e) {
@@ -99,18 +138,18 @@ Stream<String> _executeFileOutputStream(CommandLine commandLine) async*
   }
 }
 
-_ShellResponse _executeFile(CommandLine commandLine)
+_ShellResponse _executeFile(ParsedCommand parsedCommand)
 {
   return new _ShellResponse(
     environment: Platform.environment,
     termCommand: null,
-    output: _executeFileOutputStream(commandLine)
+    output: _executeFileOutputStream(parsedCommand.commandLine, parsedCommand.outputFile)
   );
 }
 
-Future<_ShellResponse> _execute(CommandLine commandLine) async
+Future<_ShellResponse> _execute(ParsedCommand parsedCommand) async
 {
-  switch (commandLine.command)
+  switch (parsedCommand.commandLine.command)
   {
     case "clear":
       return new _ShellResponse(
@@ -119,9 +158,9 @@ Future<_ShellResponse> _execute(CommandLine commandLine) async
         output: new Stream.empty()
       );
     case "cd":
-      return await _changeDirectory(commandLine.arguments.first);
+      return await _changeDirectory(parsedCommand.commandLine.arguments.first);
     default:
-      return _executeFile(commandLine);
+      return _executeFile(parsedCommand);
   }
 }
 
@@ -133,7 +172,14 @@ bool _isCommandArgumentCompletion(String input)
 /** Completes any word after the first -- an argument to the command */
 Stream<String> _completeCommandArgument(String input) async*
 {
-  Glob glob = new Glob(input + "*");
+  // Strip out > operator if present for completion
+  String cleanInput = input;
+  if (input.contains(">")) {
+    List<String> parts = input.split(">");
+    cleanInput = parts.last.trim();
+  }
+  
+  Glob glob = new Glob(cleanInput + "*");
   await for (FileSystemEntity entity in glob.list())
   {
     String normalised = path_util.normalize(entity.path);
@@ -155,9 +201,14 @@ Future< List<String> > _completion(String input) async
 {
   // command completion when there is only one token and no trailing space
   if ( _isCommandArgumentCompletion(input) ) {
-    CommandLine commandLine = _parseCommandString(input);
-    String argumentInput = commandLine.arguments.firstOrNull ?? "";
-    return ( await _completeCommandArgument(argumentInput).toList() )..sort();
+    try {
+      ParsedCommand parsedCommand = _commandParser.parse(input);
+      String argumentInput = parsedCommand.commandLine.arguments.firstOrNull ?? "";
+      return ( await _completeCommandArgument(argumentInput).toList() )..sort();
+    } catch (e) {
+      // If parsing fails, try to complete as argument
+      return ( await _completeCommandArgument(input).toList() )..sort();
+    }
   }
   else {
     return _completeCommand(input);
@@ -172,7 +223,7 @@ Future<_ShellResponse> _run(List<String> arguments) async
     case "init":
       return _init();
     case "execute":
-      return _execute( _parseCommandString(arguments[1]) );
+      return _execute( _commandParser.parse(arguments[1]) );
     case "completion":
       return new _ShellResponse(
         environment: Platform.environment,
