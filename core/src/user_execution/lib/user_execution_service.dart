@@ -36,6 +36,33 @@ class _StdOutputHandler
 
 class _UserExecutionService
 {
+  Future<void> _handleWriteFileAsUser(HttpRequest request, String path, String authString) async
+  {
+    try {
+      // Read the request body
+      String content = await request.readBodyAsString();
+      
+      // Write file as user
+      File file = ExecuteAs.getFileAsUser(authString, path);
+      
+      // Create parent directory if it doesn't exist
+      Directory parentDir = file.parent;
+      if (!await parentDir.exists()) {
+        await parentDir.create(recursive: true);
+      }
+      
+      await file.writeAsString(content);
+      
+      request.response.statusCode = HttpStatus.ok;
+      request.response.write("File written successfully");
+    } catch (e, stackTrace) {
+      print("Error writing file at path '$path': $e");
+      print(stackTrace);
+      request.response.statusCode = HttpStatus.internalServerError;
+      request.response.write("Failed to write file: $e");
+    }
+  }
+
   Future<void> _handleReadFileAsUser(HttpRequest request, String path, String authString) async
   {
     File file = ExecuteAs.getFileAsUser(authString, path);
@@ -142,6 +169,10 @@ class _UserExecutionService
       case "POST":
         // Execute file (must be executable) as the current user.
         await _handleExecuteCommandAsUser(request, path, authString);
+        break;
+      case "PUT":
+        // Write a file as the current user
+        await _handleWriteFileAsUser(request, path, authString);
         break;
       default:
         // Method not supported

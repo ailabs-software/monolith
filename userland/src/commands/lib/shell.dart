@@ -118,6 +118,13 @@ Future<_ShellResponse> _execute(CommandLine commandLine) async
         termCommand: "clear",
         output: new Stream.empty()
       );
+    case "edit":
+      String filename = commandLine.arguments.isNotEmpty ? commandLine.arguments.first : "";
+      return new _ShellResponse(
+        environment: Platform.environment,
+        termCommand: json.encode({"command": "edit", "filename": filename}),
+        output: new Stream.empty()
+      );
     case "cd":
       return await _changeDirectory(commandLine.arguments.first);
     default:

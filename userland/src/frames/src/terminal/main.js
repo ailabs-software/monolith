@@ -138,6 +138,17 @@ async function handleEnter()
       consoleContentWorking = "";
       updateDisplay();
     }
+    else if (response.term_command != null) {
+      // Handle other terminal commands (like edit)
+      try {
+        const termCommand = JSON.parse(response.term_command);
+        if (termCommand.command === "edit") {
+          await handleEditCommand(termCommand.filename);
+        }
+      } catch (e) {
+        // If not JSON, ignore
+      }
+    }
     else if (response.output != null) {
       $print(response.output);
       finalise();
