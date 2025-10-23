@@ -79,18 +79,39 @@ class _GitWrapper extends TrustedCommandWrapper<_GitCommand>
     ];
   }
 
+  String _quoteForShell(String arg) {
+    // Replaces every single-quote (') with ('\'')
+    // e.g., "my'arg" becomes "'my\'arg'"
+    return "'${arg.replaceAll("'", "'\\''")}'";
+  }
+
   ProcessInformation getProcessInformation(_GitCommand command, List<String> args)
   {
+    const String gitExecutable = "/usr/bin/git";
+    final List<String> gitArguments = _getFinalArguments(command, args);
+
+    final String fullGitCommand = [
+      gitExecutable,
+      ...gitArguments
+    ].map(_quoteForShell).join(' ');
+
     return ProcessInformation(
-      executable: "/usr/bin/git",
-      arguments: _getFinalArguments(command, args),
+      executable: "/usr/bin/script",
+      arguments: [
+        "-q",         // Quiet mode (no "Script started" messages)
+        "-e",         // Return the exit code of the command
+        "-c",         // The command string to run
+        fullGitCommand, // Our fully quoted `git ...` command
+        "/dev/null"   // Where to write the log file (we discard it)
+      ],
       environment: {
         ...Platform.environment,
         "GIT_ASKPASS": "echo",
         "GIT_TERMINAL_PROMPT": "0",
         "GITHUB_TOKEN": _readGitToken(),
-        // Flush progress immediately
+        // Force Git to output progress as if writing to a terminal
         "GIT_FLUSH": "1",
+        "TERM": "dumb",
       },
       workingDirectory: Directory.current.path
     );
