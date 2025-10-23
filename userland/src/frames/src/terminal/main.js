@@ -121,6 +121,7 @@ async function handleEnter()
   finalise();
 
   if (!commandString) {
+    await runInit();
     return;
   }
 
