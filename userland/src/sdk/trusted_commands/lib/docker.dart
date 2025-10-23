@@ -13,7 +13,8 @@ enum _DockerCommand
   run,
   stop,
   exec,
-  compose
+  compose,
+  version
 }
 
 class _DockerWrapper extends TrustedCommandWrapper<_DockerCommand>

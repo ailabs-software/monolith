@@ -52,3 +52,9 @@ function docker()
   # run docker through user exec service so runs as trusted command
   /system/dart_sdk/bin/dartaotruntime /system/bin/run.aot docker "$@"
 }
+
+function tar()
+{
+  # run tar through user exec service so runs as trusted command
+  /system/dart_sdk/bin/dartaotruntime /system/bin/run.aot tar "$@"
+}

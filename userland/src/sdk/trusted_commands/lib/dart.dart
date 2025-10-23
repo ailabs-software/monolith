@@ -1,6 +1,5 @@
 import "dart:io";
 import "package:mutex/mutex.dart";
-import "package:common/constants/file_system_source_path.dart";
 import "package:common/util.dart";
 import "package:trusted_commands/trusted_command_wrapper.dart";
 
@@ -20,27 +19,12 @@ class _DartWrapper extends TrustedCommandWrapper<_DartCommand>
     return _DartCommand.values;
   }
 
-  Iterable<String> _translateOutputArgs(List<String> args) sync*
-  {
-    for (String arg in args)
-    {
-      bool isAbsolutePath = arg.startsWith("/");
-      if (isAbsolutePath) {
-        // ensure path is relative
-        yield safeJoinPaths(file_system_source_path, arg);
-      }
-      else {
-        yield arg;
-      }
-    }
-  }
-
   List<String> _getTranslatedArguments(_DartCommand command, List<String> args)
   {
     switch (command)
     {
       case _DartCommand.compile:
-        return ["compile", ..._translateOutputArgs(args)];
+        return ["compile", ...translateAnyAbsolutePathArgs(args)];
       case _DartCommand.pub:
         switch (args[0])
         {
