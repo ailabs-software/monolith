@@ -8,7 +8,8 @@ import "package:trusted_commands/trusted_command_wrapper.dart";
 
 enum _DartCommand
 {
-  compile
+  compile,
+  pub
 }
 
 class _DartWrapper extends TrustedCommandWrapper<_DartCommand>
@@ -19,12 +20,48 @@ class _DartWrapper extends TrustedCommandWrapper<_DartCommand>
     return _DartCommand.values;
   }
 
+  Iterable<String> _translateOutputArgs(List<String> args) sync*
+  {
+    for (String arg in args)
+    {
+      bool isAbsolutePath = arg.startsWith("/");
+      if (isAbsolutePath) {
+        // ensure path is relative
+        yield safeJoinPaths(file_system_source_path, arg);
+      }
+      else {
+        yield arg;
+      }
+    }
+  }
+
+  List<String> _getTranslatedArguments(_DartCommand command, List<String> args)
+  {
+    switch (command)
+    {
+      case _DartCommand.compile:
+        return ["compile", ..._translateOutputArgs(args)];
+      case _DartCommand.pub:
+        switch (args[0])
+        {
+          case "get":
+            return ["pub", "get"];
+          default:
+            throw new Exception("Bad sub command ${args[0]}.");
+        }
+    }
+  }
+
   ProcessInformation getProcessInformation(_DartCommand command, List<String> args)
   {
     return ProcessInformation(
       executable: "/opt/monolith/core/dart_sdk/bin/dart",
-      arguments: [getCommandNameFromEnum(command), ...args],
-      environment: Platform.environment,
+      arguments: _getTranslatedArguments(command, args),
+      environment: {
+        ...Platform.environment,
+        // dart pub executes "chmod", which resides in /bin/
+        "PATH": "/bin/"
+      },
       workingDirectory: Directory.current.path
     );
   }
