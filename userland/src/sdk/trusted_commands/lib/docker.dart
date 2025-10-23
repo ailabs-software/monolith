@@ -27,7 +27,7 @@ class _DockerWrapper extends TrustedCommandWrapper<_DockerCommand>
   {
     return ProcessInformation(
       executable: "/usr/bin/docker",
-      arguments: args,
+      arguments: [getCommandNameFromEnum(command), ...args],
       environment: Platform.environment,
       workingDirectory: Directory.current.path
     );
