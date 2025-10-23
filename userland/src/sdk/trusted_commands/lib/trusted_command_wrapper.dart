@@ -57,7 +57,7 @@ abstract class TrustedCommandWrapper<T extends Enum>
       environment: processInformation.environment,
       workingDirectory: processInformation.workingDirectory,
       runInShell: processInformation.runInShell,
-      includeParentEnvironment: processInformation.includeParentEnvironment,
+      includeParentEnvironment: processInformation.includeParentEnvironment
     );
   }
 

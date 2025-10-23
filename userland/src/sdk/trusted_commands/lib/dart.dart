@@ -24,7 +24,7 @@ class _DartWrapper extends TrustedCommandWrapper<_DartCommand>
     switch (command)
     {
       case _DartCommand.compile:
-        return ["compile", ...translateAnyAbsolutePathArgs(args)];
+        return ["compile", ...args];
       case _DartCommand.pub:
         switch (args[0])
         {
@@ -38,9 +38,10 @@ class _DartWrapper extends TrustedCommandWrapper<_DartCommand>
 
   ProcessInformation getProcessInformation(_DartCommand command, List<String> args)
   {
+    String cwd = Platform.environment["CWD"]!;
     return ProcessInformation(
-      executable: "/opt/monolith/core/dart_sdk/bin/dart",
-      arguments: _getTranslatedArguments(command, args),
+      executable: "/opt/monolith/core/bin/monolith_chroot",
+      arguments: ["/mnt/root_access", cwd, "/dart_sdk/bin/dart", ..._getTranslatedArguments(command, args)],
       environment: {
         ...Platform.environment,
         // dart pub executes "chmod", which resides in /bin/
