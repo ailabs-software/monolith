@@ -1,4 +1,6 @@
 import "dart:io";
+import "package:common/constants/file_system_source_path.dart";
+import "package:common/util.dart";
 import "package:trusted_commands/trusted_command_wrapper.dart";
 
 /** @fileoverview Wraps docker build. Runs in trusted, so outside chroot */
@@ -6,13 +8,13 @@ import "package:trusted_commands/trusted_command_wrapper.dart";
 enum _DockerCommand
 {
   build,
-  load,
-  save,
+  image,
   ps,
   run,
   stop,
   exec,
-  compose
+  compose,
+  version
 }
 
 class _DockerWrapper extends TrustedCommandWrapper<_DockerCommand>
@@ -28,7 +30,10 @@ class _DockerWrapper extends TrustedCommandWrapper<_DockerCommand>
     return ProcessInformation(
       executable: "/usr/bin/docker",
       arguments: [getCommandNameFromEnum(command), ...args],
-      environment: Platform.environment,
+      environment: {
+        ...Platform.environment,
+        "TMPDIR": safeJoinPaths(file_system_source_path, "/tmp"),
+      },
       workingDirectory: Directory.current.path
     );
   }

@@ -1,5 +1,7 @@
 import "dart:io";
 import "package:mutex/mutex.dart";
+import "package:common/constants/file_system_source_path.dart";
+import "package:common/util.dart";
 
 class ProcessInformation
 {
@@ -29,6 +31,21 @@ abstract class TrustedCommandWrapper<T extends Enum>
     return command.name.replaceFirst("\$", "");
   }
 
+  Iterable<String> translateAnyAbsolutePathArgs(List<String> args) sync*
+  {
+    for (String arg in args)
+    {
+      bool isAbsolutePath = arg.startsWith("/");
+      if (isAbsolutePath) {
+        // ensure path is relative
+        yield safeJoinPaths(file_system_source_path, arg);
+      }
+      else {
+        yield arg;
+      }
+    }
+  }
+
   ProcessInformation getProcessInformation(T command, List<String> args);
 
   Future<Process> startProcess(T command, List<String> args)
@@ -40,7 +57,7 @@ abstract class TrustedCommandWrapper<T extends Enum>
       environment: processInformation.environment,
       workingDirectory: processInformation.workingDirectory,
       runInShell: processInformation.runInShell,
-      includeParentEnvironment: processInformation.includeParentEnvironment,
+      includeParentEnvironment: processInformation.includeParentEnvironment
     );
   }
 
