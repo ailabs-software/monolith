@@ -34,6 +34,11 @@ function mv()
   /system/bin/busybox.exe mv "$@"
 }
 
+function find()
+{
+  /system/bin/busybox.exe find "$@"
+}
+
 # trusted command wrappers for use in bash
 function git()
 {
