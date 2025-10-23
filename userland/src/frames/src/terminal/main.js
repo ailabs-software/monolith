@@ -120,6 +120,10 @@ async function handleEnter()
   let commandString = consoleContentWorking.trimEnd();
   finalise();
 
+  if (!commandString) {
+    return;
+  }
+
   // Enter busy mode
   isBusy = true;
 
