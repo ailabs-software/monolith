@@ -44,8 +44,8 @@ class _DartWrapper extends TrustedCommandWrapper<_DartCommand>
       arguments: ["/mnt/root_access", cwd, "/dart_sdk/bin/dart", ..._getTranslatedArguments(command, args)],
       environment: {
         ...Platform.environment,
-        // dart pub executes "chmod", which resides in /bin/
-        "PATH": "/bin/"
+        // dart pub executes "chmod", which resides in /usr/bin/
+        "PATH": "/usr/bin/"
       },
       workingDirectory: Directory.current.path
     );

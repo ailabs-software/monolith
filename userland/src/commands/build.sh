@@ -20,3 +20,7 @@ ln /bin/busybox /opt/monolith/userland/system/bin/busybox.exe
 chmod +x /opt/monolith/userland/system/bin/busybox.exe
 # copy in command aliases
 cp lib/*.alias /opt/monolith/userland/system/bin/
+
+# provide chmod command (used by dart pub)
+ln /bin/busybox /opt/monolith/userland/usr/bin/chmod
+chmod +x /opt/monolith/userland/usr/bin/chmod
