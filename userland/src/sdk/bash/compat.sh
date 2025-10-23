@@ -44,5 +44,5 @@ function git()
 function dart()
 {
   # run dart through user exec service so runs as trusted command
-  /system/dart_sdk/bin/dartaotruntime /system/bin/run.aot /opt/monolith/core/dart_sdk/bin/dart "$@"
+  /system/dart_sdk/bin/dartaotruntime /system/bin/run.aot dart "$@"
 }

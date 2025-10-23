@@ -20,15 +20,20 @@ class ProcessInformation
   });
 }
 
-abstract class Command
+abstract class TrustedCommandWrapper<T extends Enum>
 {
-  Command();
+  List<T> getEnumValues();
 
-  ProcessInformation getProcessInformation(List<String> args);
-
-  Future<Process> startProcess(List<String> args)
+  String getCommandNameFromEnum(T command)
   {
-    final ProcessInformation processInformation = getProcessInformation(args);
+    return command.name.replaceFirst("\$", "");
+  }
+
+  ProcessInformation getProcessInformation(T command, List<String> args);
+
+  Future<Process> startProcess(T command, List<String> args)
+  {
+    final ProcessInformation processInformation = getProcessInformation(command, args);
     return Process.start(
       processInformation.executable,
       processInformation.arguments,
@@ -56,9 +61,9 @@ abstract class Command
     });
   }
 
-  Future<void> parse(List<String> args) async
+  Future<void> run(T command, List<String> args) async
   {
-    final Process process = await startProcess(args);
+    final Process process = await startProcess(command, args);
 
     _listenToStdOutputs(process);
 
@@ -66,5 +71,20 @@ abstract class Command
     if (exitCode != 0) {
       exit(exitCode);
     }
+  }
+
+  Future<void> main(List<String> args) async
+  {
+    final String? commandName = args.firstOrNull;
+    if (commandName == null) {
+      print("No command name provided");
+      exit(1);
+    }
+    T? command = getEnumValues().where( (T c) => getCommandNameFromEnum(c) == commandName ).firstOrNull;
+    if (command == null) {
+      print("Command \"${commandName}\" not covered by this wrapper");
+      exit(2);
+    }
+    await run(command, args.sublist(1));
   }
 }

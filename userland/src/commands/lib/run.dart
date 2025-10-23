@@ -7,7 +7,10 @@ import "package:common/user_execution_client.dart";
 
 Future<void> main(List<String> arguments) async
 {
-  UserExecutionClient client = new UserExecutionClient(Platform.environment);
+  UserExecutionClient client = new UserExecutionClient({
+    ...Platform.environment,
+    "CWD": Directory.current.path
+  });
 
   CommandLine commandLine = new CommandLine(
     command: arguments.first,

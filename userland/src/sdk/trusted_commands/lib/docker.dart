@@ -1,66 +1,40 @@
 import "dart:io";
+import "package:trusted_commands/trusted_command_wrapper.dart";
 
 /** @fileoverview Wraps docker build. Runs in trusted, so outside chroot */
 
-enum _DockerCommands
+enum _DockerCommand
 {
-  build("build"),
-  load("load"),
-  save("save"),
-  ps("ps"),
-  run("run"),
-  stop("stop"),
-  exec("exec"),
-  compose("compose");
-
-  final String command;
-
-  const _DockerCommands(String this.command);
+  build,
+  load,
+  save,
+  ps,
+  run,
+  stop,
+  exec,
+  compose
 }
 
-class _DockerWrapper
+class _DockerWrapper extends TrustedCommandWrapper<_DockerCommand>
 {
-  final _DockerCommands dockerCommand;
-
-  _DockerWrapper(_DockerCommands this.dockerCommand);
-
-  Future<void> parse(List<String> args) async
+  @override
+  List<_DockerCommand> getEnumValues()
   {
-    await _runDockerCommand(args);
+    return _DockerCommand.values;
   }
 
-  Future<void> _runDockerCommand([List<String> args = const []]) async
+  ProcessInformation getProcessInformation(_DockerCommand command, List<String> args)
   {
-    final String userCwd = Platform.environment["CWD"] ?? "/";
-    final String actualCwd = "/opt/monolith/userland$userCwd";
-
-    final ProcessResult result = await Process.run(
-      "/usr/bin/docker",
-      [dockerCommand.command, ...args],
-      environment: {
-        ...Platform.environment,
-      },
-      workingDirectory: actualCwd,
+    return ProcessInformation(
+      executable: "/usr/bin/docker",
+      arguments: args,
+      environment: Platform.environment,
+      workingDirectory: Directory.current.path
     );
-
-    print(result.stdout);
-    if (result.exitCode != 0) {
-      print("Error: ${result.stderr}");
-    }
   }
 }
 
 void main(List<String> args) async
 {
-  final String? commandName = args.firstOrNull;
-  if (commandName == null) {
-    print("No command name provided");
-    exit(1);
-  }
-  _DockerCommands? command = _DockerCommands.values.where((_DockerCommands c) => c.command == commandName).firstOrNull;
-  if (command == null) {
-    print("Command \"${commandName}\" not covered by this wrapper");
-    exit(2);
-  }
-  await new _DockerWrapper(command).parse(args.sublist(1));
+  await new _DockerWrapper().main(args);
 }

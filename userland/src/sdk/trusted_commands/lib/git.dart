@@ -1,35 +1,33 @@
 import "dart:io";
+import "package:mutex/mutex.dart";
 import "package:common/constants/file_system_source_path.dart";
 import "package:common/util.dart";
-import "package:common/command.dart";
-import "package:mutex/mutex.dart";
+import "package:trusted_commands/trusted_command_wrapper.dart";
 
 /** @fileoverview Wraps git. Runs in trusted, so outside chroot */
 
-final String _GIT_SECRET_ACCESS = "git token here";
+const String _GIT_SECRET_ACCESS = "git token here";
 
-enum _GitCommands
+enum _GitCommand
 {
-  branch("branch"),
-  checkout("checkout"),
-  switchCmd("switch"),
-  push("push"),
-  pull("pull"),
-  diff("diff"),
-  stats("stats"),
-  add("add"),
-  clone("clone");
-
-  final String command;
-
-  const _GitCommands(String this.command);
+  branch,
+  checkout,
+  $switch,
+  push,
+  pull,
+  diff,
+  stats,
+  add,
+  clone
 }
 
-class _GitWrapper extends Command
+class _GitWrapper extends TrustedCommandWrapper<_GitCommand>
 {
-  final _GitCommands gitCommand;
-
-  _GitWrapper(_GitCommands this.gitCommand);
+  @override
+  List<_GitCommand> getEnumValues()
+  {
+    return _GitCommand.values;
+  }
 
   String _readGitToken()
   {
@@ -41,7 +39,7 @@ class _GitWrapper extends Command
     const String gitUrlPrefix = "https://github.com/";
     const String gitSshPrefix = "git@github.com:";
 
-    final List<String> transformedArgs = args.map((arg) {
+    return args.map( (String arg) {
       String? path;
       if (arg.startsWith(gitSshPrefix)) {
         path = arg.substring(gitSshPrefix.length);
@@ -51,11 +49,13 @@ class _GitWrapper extends Command
       }
       return path == null ? arg : "https://${_readGitToken()}@github.com/${path}";
     }).toList();
-    return transformedArgs;
   }
 
   List<String> _getGitCloneArguments(List<String> args)
   {
+    if (args.length != 2) {
+      throw new Exception("git clone: arguments must be exactly: git clone [remote] [destination]");
+    }
     String remote = args[0];
     String destination = args[1];
     return [
@@ -64,29 +64,26 @@ class _GitWrapper extends Command
     ];
   }
 
-  List<String> _getFinalArguments(List<String> args)
+  List<String> _getFinalArguments(_GitCommand command, List<String> args)
   {
     final List<String> transformedArgs = _transformArgsToTokenUrl(args);
 
     // Force immediate progress for operations that emit progress (clone/pull/push)
-    final bool isProgressy = gitCommand == _GitCommands.clone || gitCommand == _GitCommands.pull || gitCommand == _GitCommands.push;
+    final bool isProgressy = command == _GitCommand.clone || command == _GitCommand.pull || command == _GitCommand.push;
     return [
       if (isProgressy) ...["-c", "progress.delay=0"],
-      gitCommand.command,
+      getCommandNameFromEnum(command),
       if (isProgressy && !transformedArgs.contains("--progress")) "--progress",
-      if (gitCommand == _GitCommands.clone) ..._getGitCloneArguments(transformedArgs)
+      if (command == _GitCommand.clone) ..._getGitCloneArguments(transformedArgs)
       else ...transformedArgs
     ];
   }
 
-  ProcessInformation getProcessInformation(List<String> args)
+  ProcessInformation getProcessInformation(_GitCommand command, List<String> args)
   {
-    final String userCwd = Platform.environment["CWD"] ?? "/";
-    final String actualCwd = "/opt/monolith/userland$userCwd";
-
     return ProcessInformation(
       executable: "/usr/bin/git",
-      arguments: _getFinalArguments(args),
+      arguments: _getFinalArguments(command, args),
       environment: {
         ...Platform.environment,
         "GIT_ASKPASS": "echo",
@@ -95,22 +92,12 @@ class _GitWrapper extends Command
         // Flush progress immediately
         "GIT_FLUSH": "1",
       },
-      workingDirectory: actualCwd,
+      workingDirectory: Directory.current.path
     );
   }
 }
 
 void main(List<String> args) async
 {
-  final String? commandName = args.firstOrNull;
-  if (commandName == null) {
-    print("Not command name provided");
-    exit(1);
-  }
-  _GitCommands? command = _GitCommands.values.where((_GitCommands c) => c.command == commandName).firstOrNull;
-  if (command == null) {
-    print("Command \"${commandName}\" not covered by this wrapper");
-    exit(2);
-  }
-  await new _GitWrapper(command).parse(args.sublist(1));
+  await new _GitWrapper().main(args);
 }

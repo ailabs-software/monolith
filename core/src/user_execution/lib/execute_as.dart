@@ -38,7 +38,7 @@ class ExecuteAs
       "/opt/monolith/core/bin/monolith_chroot",
       <String>[_getMountPointFromPrivilegeLevel(privilege), workingDirectory, commandLine.command, ...commandLine.arguments],
       environment: {...environment, ...commandLine.environmentOverrides},
-      workingDirectory: "/"
+      workingDirectory: "/" // when using monolith_chroot, this is the workingDirectory for chroot itself, NOT the process within.
     );
   }
 
