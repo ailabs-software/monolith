@@ -132,7 +132,7 @@ class MonolithFileSystem extends MirrorFileSystem
   }
 
   @override
-  Future<void> rename(String path, newPath) async
+  Future<void> rename(String path, String newPath) async
   {
     await _onFileMutated(path);
     await super.rename(path, newPath);
