@@ -4,6 +4,8 @@ FROM monolith_core:latest
 
 COPY src /tmp/src
 COPY --from=common . /tmp/src/common/
+RUN mkdir -p /opt/ailabs/
+COPY --from=ailabs_source . /opt/ailabs/source
 
 RUN mkdir /opt/monolith/userland
 RUN mkdir /opt/monolith/userland/system
