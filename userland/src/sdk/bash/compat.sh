@@ -39,17 +39,28 @@ function find()
   /system/bin/busybox.exe find "$@"
 }
 
-# trusted command wrappers for use in bash
-function git()
+function chmod()
 {
-  # run git through user exec service so runs as trusted command
-  /system/dart_sdk/bin/dartaotruntime /system/bin/run.aot git "$@"
+  /system/bin/busybox.exe chmod "$@"
+}
+
+# trusted command wrappers for use in bash
+function cook()
+{
+  # run dart through user exec service so runs as trusted command
+  /system/dart_sdk/bin/dartaotruntime /system/bin/run.aot cook "$@"
 }
 
 function dart()
 {
   # run dart through user exec service so runs as trusted command
   /system/dart_sdk/bin/dartaotruntime /system/bin/run.aot dart "$@"
+}
+
+function git()
+{
+  # run git through user exec service so runs as trusted command
+  /system/dart_sdk/bin/dartaotruntime /system/bin/run.aot git "$@"
 }
 
 function docker()

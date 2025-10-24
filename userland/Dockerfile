@@ -42,7 +42,9 @@ RUN /tmp/src/sdk/ailabs/build.sh
 RUN /opt/monolith/core/dart_sdk/bin/dartaotruntime /opt/monolith/core/bin/set_access.aot "**" readable
 
 # clean up -- TODO remove source from final image FFS
-RUN rm -rf /tmp/src
+RUN rm -rf /tmp/src && \
+    rm -rf /opt/ailabs
+
 WORKDIR /
 
 # we run terminal.aot on port 80
