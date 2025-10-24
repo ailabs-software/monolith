@@ -70,13 +70,13 @@ class MonolithFSDriver
     }
   }
 
-  Future<String> _handleRequest(Request request) async
+  Future<Object> _handleRequest(Request request) async
   {
     try {
       return await _handleRequestInternal(request);
     }
     catch (e, s) {
-      print("file system op failed: ${request.type} ${request.path} ${request.xParam} ${request.yParam} ${request.stringParam.length}");
+      print("file system op failed: ${request.type} ${request.path} ${request.xParam} ${request.yParam} ${request.dataParam.length}");
       print("error was:");
       print(e);
       print(s);
