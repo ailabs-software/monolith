@@ -44,6 +44,11 @@ function chmod()
   /system/bin/busybox.exe chmod "$@"
 }
 
+function cat()
+{
+  /system/bin/busybox.exe cat "$@"
+}
+
 # trusted command wrappers for use in bash
 function cook()
 {
