@@ -6,5 +6,10 @@ apk update && apk add --no-cache \
     libstdc++ \
     libc6-compat
 
-# Download and install pre-built code-server binary
-curl -fsSL https://code-server.dev/install.sh | sh -s -- --method=standalone --prefix=/usr/local
+# Use local install.sh if available, otherwise download
+if [ -f "/tmp/src/sdk/vs_code/install.sh" ]; then
+    echo "Using local install.sh"
+    sh /tmp/src/sdk/vs_code/install.sh --method=standalone --prefix=/usr/local
+else
+    curl -fsSL https://code-server.dev/install.sh | sh -s -- --method=standalone --prefix=/usr/local
+fi
