@@ -1,5 +1,6 @@
 import "dart:io";
 import "dart:convert";
+import "dart:typed_data";
 import "package:meta/meta.dart";
 import "package:path/path.dart" as path_util;
 import "package:common/util.dart";
@@ -22,14 +23,14 @@ abstract class FileSystem
 
   Future<int> fileSize(String path);
 
-  Future<String> readFile(String path, int offset, int size);
+  Future<Uint8List> readFile(String path, int offset, int size);
 
   Future<bool> fileWritable(String path);
 
-  @protected Future<void> writeFileInternal(String path, int offset, String data);
+  @protected Future<void> writeFileInternal(String path, int offset, Uint8List data);
 
   @nonVirtual
-  Future<bool> writeFile(String path, int offset, String data) async
+  Future<bool> writeFile(String path, int offset, Uint8List data) async
   {
     if ( await fileWritable(path) ) {
       await writeFileInternal(path, offset, data);
@@ -124,7 +125,7 @@ class MirrorFileSystem extends FileSystem
   }
 
   @override
-  Future<String> readFile(String path, int offset, int size) async
+  Future<Uint8List> readFile(String path, int offset, int size) async
   {
     String translatedPath = _translatePath(path);
     File file = new File(translatedPath);
@@ -132,7 +133,7 @@ class MirrorFileSystem extends FileSystem
     await raf.setPosition(offset);
     List<int> bytes = await raf.read(size);
     await raf.close();
-    return base64.encode(bytes);
+    return Uint8List.fromList(bytes);
   }
 
   @override
@@ -142,14 +143,13 @@ class MirrorFileSystem extends FileSystem
   }
 
   @override
-  @protected Future<void> writeFileInternal(String path, int offset, String data) async
+  @protected Future<void> writeFileInternal(String path, int offset, Uint8List data) async
   {
     String translatedPath = _translatePath(path);
     File file = new File(translatedPath);
     final raf = await file.open(mode: FileMode.append);
     await raf.setPosition(offset);
-    List<int> decodedData = base64.decode(data);
-    await raf.writeFrom(decodedData);
+    await raf.writeFrom(data);
     await raf.close();
   }
 

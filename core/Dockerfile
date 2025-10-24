@@ -33,7 +33,7 @@ RUN gcc -Wall -Wextra -g -o "$CORE_PATH/bin/monolith_chroot" main.c
 
 # build fuse file system driver (c)
 WORKDIR /tmp/src/file_system/lib/driver
-RUN gcc -Wall monolith_fs_driver.c request.c cjson/cJSON.c `pkg-config fuse3 --cflags --libs` -o "$CORE_PATH/bin/monolith_fs_driver"
+RUN gcc -Wall monolith_fs_driver.c request.c `pkg-config fuse3 --cflags --libs` -o "$CORE_PATH/bin/monolith_fs_driver"
 
 
 # build core's file system
