@@ -1,5 +1,6 @@
 import "dart:io";
 import "dart:convert";
+import "dart:math";
 import "dart:typed_data";
 import "package:meta/meta.dart";
 import "package:file_system/driver/file_system.dart";
@@ -8,6 +9,7 @@ import "package:common/access_types.dart";
 import "package:common/util.dart";
 import "package:common/entity_attributes_stores.dart";
 
+final Uint8List _EMPTY_BYTES = new Uint8List.fromList([0]);
 const String _INVISIBLE_STRING = "";
 final Uint8List _INVISIBLE_BYTES = utf8.encode(_INVISIBLE_STRING);
 const String _OPAQUE_STRING = "<opaque>";
@@ -73,15 +75,26 @@ class MonolithFileSystem extends MirrorFileSystem
     return await super.fileSize(path);
   }
 
+  Uint8List _getBytesInRange(Uint8List array, int offset, int size)
+  {
+    if (array.length > offset - 1) {
+      int end = min(offset + size, array.length);
+      return array.sublist(offset, end);
+    }
+    else {
+      return _EMPTY_BYTES;
+    }
+  }
+
   @override
   Future<Uint8List> readFile(String path, int offset, int size) async
   {
     EntityAccessLevel accessLevel = await _getEntityAccessLevel(path);
     if (accessLevel.index <= EntityAccessLevel.invisible.index) {
-      return _INVISIBLE_BYTES;
+      return _getBytesInRange(_INVISIBLE_BYTES, offset, size);
     }
     if (accessLevel.index == EntityAccessLevel.opaque.index) {
-      return _OPAQUE_BYTES;
+      return _getBytesInRange(_OPAQUE_BYTES, offset, size);
     }
     return await super.readFile(path, offset, size);
   }
