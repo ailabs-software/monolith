@@ -87,6 +87,8 @@ class _GitWrapper extends TrustedCommandWrapper<_GitCommand>
 
   ProcessInformation getProcessInformation(_GitCommand command, List<String> args)
   {
+    String cwd = Platform.environment["CWD"]!;
+
     const String gitExecutable = "/usr/bin/git";
     final List<String> gitArguments = _getFinalArguments(command, args);
 
@@ -113,7 +115,7 @@ class _GitWrapper extends TrustedCommandWrapper<_GitCommand>
         "GIT_FLUSH": "1",
         "TERM": "dumb",
       },
-      workingDirectory: Directory.current.path
+      workingDirectory: safeJoinPaths(file_system_source_path, cwd)
     );
   }
 }

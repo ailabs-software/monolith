@@ -14,20 +14,22 @@ class ExecuteAs
     return "/mnt/${privilege.name}_access";
   }
 
-  static Future<Process> _executeResolvedExecutableAsPrivilegeLevel(UserAccessPrivilege privilege, CommandLine originalCommandLine, Map<String, String> environment) async
+  static Future<Process> _executeResolvedExecutableAsPrivilegeLevel(bool isTrustedExecutable, UserAccessPrivilege privilege, CommandLine originalCommandLine, Map<String, String> environment) async
   {
     String workingDirectory = environment["CWD"] ?? "/";
 
-    // if bare, run outside chroot
-    if (privilege == UserAccessPrivilege.bare) {
-      // re-resolve executable within file_system_source_path
-      Executable executable = new Executable(rootPath: file_system_source_path, prefixPath: file_system_source_path, environment: environment);
+    String mountPointForPrivilegeLevel = _getMountPointFromPrivilegeLevel(privilege);
+
+    // if trusted executable, run outside chroot
+    if (isTrustedExecutable) {
+      // re-resolve executable to run outside of chroot (but within the mountpoint)
+      Executable executable = new Executable(rootPath: mountPointForPrivilegeLevel, prefixPath: mountPointForPrivilegeLevel, environment: environment);
       CommandLine commandLine = await executable.resolveExecutable(originalCommandLine);
       return Process.start(
         commandLine.command,
         commandLine.arguments,
         environment: {...environment, ...commandLine.environmentOverrides},
-        workingDirectory: safeJoinPaths(file_system_source_path, workingDirectory)
+        workingDirectory: safeJoinPaths(mountPointForPrivilegeLevel, workingDirectory)
       );
     }
 
@@ -36,7 +38,7 @@ class ExecuteAs
 
     return Process.start(
       "/opt/monolith/core/bin/monolith_chroot",
-      <String>[_getMountPointFromPrivilegeLevel(privilege), workingDirectory, commandLine.command, ...commandLine.arguments],
+      <String>[mountPointForPrivilegeLevel, workingDirectory, commandLine.command, ...commandLine.arguments],
       environment: {...environment, ...commandLine.environmentOverrides},
       workingDirectory: "/" // when using monolith_chroot, this is the workingDirectory for chroot itself, NOT the process within.
     );
@@ -49,13 +51,10 @@ class ExecuteAs
     Executable executable = new Executable(rootPath: file_system_source_path, prefixPath: "", environment: environment);
 
     bool isTrustedExecutable = await trustedExecutablesStore.get(await executable.resolveExecutablePath(commandLine.command), "0") == "1";
-    if (isTrustedExecutable) {
-      privilege = UserAccessPrivilege.bare; // trusted executables always run as bare, to perform trust requiring operations
-    }
 
-    print("execute as resolved command: ${privilege.name}: ${commandLine.command} -- ${commandLine.arguments}");
+    print("execute as resolved command: ${privilege.name}: ${commandLine.command} trusted = ${isTrustedExecutable} -- ${commandLine.arguments}");
 
-    return _executeResolvedExecutableAsPrivilegeLevel(privilege, commandLine, environment);
+    return _executeResolvedExecutableAsPrivilegeLevel(isTrustedExecutable, privilege, commandLine, environment);
   }
 
   static Future<Process> executeAsUser(String authString, CommandLine commandLine, Map<String, String> environment) async

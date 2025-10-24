@@ -28,7 +28,6 @@ EntityAccessLevel _standardAccessLevelRule(EntityAccessLevel fileAccessLevel)
 // the privilege level of the current user
 enum UserAccessPrivilege
 {
-  bare(accessLevelRule: _rootAccessLevelRule), // bare bypasses chroot in monolith FS, reads from source path directly (used for trusted executables)
   root(accessLevelRule: _rootAccessLevelRule), // access within chroot, but able to see all files
   standard(accessLevelRule: _standardAccessLevelRule); // access within chroot, certain files seen only
 
