@@ -7,9 +7,9 @@ import "package:common/util.dart";
 import "package:common/entity_attributes_stores.dart";
 
 const String _INVISIBLE_STRING = "";
-const int _INVISIBLE_STRING_LEN = _INVISIBLE_STRING.length;
+final Uint8List _INVISIBLE_BYTES = utf8.encode(_INVISIBLE_STRING);
 const String _OPAQUE_STRING = "<opaque>";
-const int _OPAQUE_STRING_LEN = _OPAQUE_STRING.length;
+final Uint8List _OPAQUE_BYTES = utf8.encode(_OPAQUE_STRING);
 
 class MonolithFileSystem extends MirrorFileSystem
 {
@@ -63,23 +63,23 @@ class MonolithFileSystem extends MirrorFileSystem
   {
     EntityAccessLevel accessLevel = await _getEntityAccessLevel(path);
     if (accessLevel.index <= EntityAccessLevel.invisible.index) {
-      return _INVISIBLE_STRING_LEN;
+      return _INVISIBLE_BYTES.length;
     }
     if (accessLevel.index == EntityAccessLevel.opaque.index) {
-      return _OPAQUE_STRING_LEN;
+      return _OPAQUE_BYTES.length;
     }
     return await super.fileSize(path);
   }
 
   @override
-  Future<String> readFile(String path, int offset, int size) async
+  Future<Uint8List> readFile(String path, int offset, int size) async
   {
     EntityAccessLevel accessLevel = await _getEntityAccessLevel(path);
     if (accessLevel.index <= EntityAccessLevel.invisible.index) {
-      return _INVISIBLE_STRING;
+      return _INVISIBLE_BYTES;
     }
     if (accessLevel.index == EntityAccessLevel.opaque.index) {
-      return _OPAQUE_STRING;
+      return _OPAQUE_BYTES;
     }
     return await super.readFile(path, offset, size);
   }
@@ -111,7 +111,7 @@ class MonolithFileSystem extends MirrorFileSystem
   }
 
   @override
-  @protected Future<void> writeFileInternal(String path, int offset, String data) async
+  @protected Future<void> writeFileInternal(String path, int offset, Uint8List data) async
   {
     await _onFileMutated(path);
     await super.writeFileInternal(path, offset, data);
