@@ -74,8 +74,7 @@ String _formatExecuteFileOutput(CommandLine commandLine, UserExecutionClientResp
   sb.write( response.stdout.toString() );
   String stderr = response.stderr.toString();
   if (stderr.isNotEmpty) {
-    sb.writeln("[${commandLine.command} error]");
-    sb.writeln(stderr.trimRight());
+    sb.writeln(stderr);
   }
   if (response.exitCode != null) {
     if (response.exitCode != 0) {
