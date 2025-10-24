@@ -24,13 +24,9 @@ class _TarWrapper extends TrustedCommandWrapper<_TarCommand>
   ProcessInformation getProcessInformation(_TarCommand command, List<String> args)
   {
     String cwd = Platform.environment["CWD"]!;
-
-    print("debug tar:");
-    print(["/mnt/root_access", cwd, "/system/bin/busybox.exe", "tar", "-cvf", ...args]);
-
     return ProcessInformation(
       executable: "/opt/monolith/core/bin/monolith_chroot",
-      arguments: ["/mnt/root_access", cwd, "/system/bin/busybox.exe", "tar", "-cvf", ...args],
+      arguments: ["/mnt/root_access", cwd, "/usr/bin/tar", "-cvf", ...args],
       environment: Platform.environment,
       workingDirectory: Directory.current.path
     );
