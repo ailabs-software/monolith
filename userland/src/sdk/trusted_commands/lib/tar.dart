@@ -2,7 +2,11 @@ import "dart:io";
 import "package:common/util.dart";
 import "package:trusted_commands/trusted_command_wrapper.dart";
 
-/** @fileoverview Wraps docker build. Runs in trusted, so outside chroot */
+/** @fileoverview Wraps tar compile. Runs in trusted, so outside chroot
+ *
+ *  TODO break out into tar_compress specialised command, we don't want to wrap all of tar.
+ *
+ * */
 
 enum _TarCommand
 {
@@ -19,11 +23,14 @@ class _TarWrapper extends TrustedCommandWrapper<_TarCommand>
 
   ProcessInformation getProcessInformation(_TarCommand command, List<String> args)
   {
-    print("DEBUG workingDirectory = ${Directory.current.path}");
+    String cwd = Platform.environment["CWD"]!;
+
+    print("debug tar:");
+    print(["/mnt/root_access", cwd, "/system/bin/busybox.exe", "tar", "-cvf", ...args]);
 
     return ProcessInformation(
-      executable: "/bin/tar",
-      arguments: ["-cvf", ...translateAnyAbsolutePathArgs(args)],
+      executable: "/opt/monolith/core/bin/monolith_chroot",
+      arguments: ["/mnt/root_access", cwd, "/system/bin/busybox.exe", "tar", "-cvf", ...args],
       environment: Platform.environment,
       workingDirectory: Directory.current.path
     );
@@ -33,7 +40,7 @@ class _TarWrapper extends TrustedCommandWrapper<_TarCommand>
 void main(List<String> args) async
 {
   if (args.firstOrNull != "-cvf") {
-    throw new Exception("Tar command not convered by trusted command wrapper.");
+    throw new Exception("Tar command not covered by trusted command wrapper.");
   }
-  await new _TarWrapper().main(["cvf", ...args.sublist(1)]);
+  await new _TarWrapper().main([_TarCommand.cvf.name, ...args.sublist(1)]);
 }
