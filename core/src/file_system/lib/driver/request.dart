@@ -29,9 +29,6 @@ class Request
   });
 }
 
-const String _SANITY_CHECK_PREFIX = "req-";
-const int _EXPECTED_REQUEST_PARTS_LEN = 5;
-
 /** Note: Return value *must not* contain newlines! Escape data first */
 typedef Future<String> RequestCallback(Request request);
 
@@ -41,7 +38,10 @@ class RequestServer
 
   final RequestCallback handleRequest;
 
-  final StringBuffer _stdoutBuffer = new StringBuffer();
+  // Buffer for incoming binary data
+  List<int> _buffer = [];
+  // State for packet parser: -1 means waiting for length, >-1 means waiting for packet of that size
+  int _expectedPacketSize = -1;
 
   RequestServer({
     required Process this.process,
@@ -59,50 +59,117 @@ class RequestServer
     );
   }
 
-  Request _parseRequest(String request)
+  Request _parseRequest(Uint8List packetData)
   {
-    if (!request.startsWith(_SANITY_CHECK_PREFIX)) {
-      if (request.length > 96) {
-        request = request.substring(0, 96) + "...";
-      }
-      throw new Exception("RequestServer: Bad request prefix from request.c: ${request}");
+    List<int> byteData = packetData.buffer
+        .asByteData(packetData.offsetInBytes, packetData.lengthInBytes);
+    int offset = 0;
+
+    try {
+      // Read type
+      int typeLen = byteData.getUint32(offset, Endian.little);
+      offset += 4;
+      String type = utf8.decode(packetData.sublist(offset, offset + typeLen));
+      offset += typeLen;
+
+      // Read path
+      int pathLen = byteData.getUint32(offset, Endian.little);
+      offset += 4;
+      String path = utf8.decode(packetData.sublist(offset, offset + pathLen));
+      offset += pathLen;
+
+      // Read params
+      int xParam = byteData.getInt32(offset, Endian.little);
+      offset += 4;
+      int yParam = byteData.getInt32(offset, Endian.little);
+      offset += 4;
+
+      // Read stringParam
+      int stringParamLen = byteData.getUint32(offset, Endian.little);
+      offset += 4;
+      String stringParam = utf8.decode(packetData.sublist(offset, offset + stringParamLen));
+
+      return Request(
+        type: type,
+        path: path,
+        xParam: xParam,
+        yParam: yParam,
+        stringParam: stringParam,
+      );
+    } catch (e) {
+      print("RequestServer: Failed to parse binary packet: $e");
+      rethrow;
     }
-    request = request.substring(_SANITY_CHECK_PREFIX.length);
-    List<String> parts = splitN(request, ":", _EXPECTED_REQUEST_PARTS_LEN);
-    if (parts.length != _EXPECTED_REQUEST_PARTS_LEN) {
-      throw new Exception("Bad request parts length from request.c: ${parts.length}, ${request}");
-    }
-    return new Request(
-      type: parts[0],
-      path: parts[1],
-      xParam: int.parse(parts[2]),
-      yParam: int.parse(parts[3]),
-      stringParam: parts[4]
-    );
   }
 
   Future<void> _sendResponse(String data) async
   {
-    if ( data.contains("\n") ) {
-      throw new Exception("Response cannot contain newlines as this breaks request.c protocol");
-    }
-    process.stdin.writeln(data); // Note: Data *must not* contain newlines! Escape data first
+    // No more newline check, binary protocol can handle any data.
+    List<int> responseBytes = utf8.encode(data);
+    ByteData lengthData = ByteData(4);
+
+    // Write length prefix (little-endian)
+    lengthData.setUint32(0, responseBytes.length, Endian.little);
+
+    // Send length prefix
+    process.stdin.add(lengthData.buffer.asUint8List());
+    // Send data
+    process.stdin.add(responseBytes);
+    
+    // Flush to ensure C process receives it
+    await process.stdin.flush();
   }
 
   Future<void> _handleStdout(List<int> data) async
   {
-    String output = utf8.decode(data);
-    bool isFinalChunk = output.endsWith("\n");
-    if (isFinalChunk) {
-      // remove \n line ending from request
-      output = output.substring(0, output.length - 1);
+    _buffer.addAll(data);
+
+    // Loop to process all complete packets in the buffer
+    while (true) {
+      // Waiting for packet length
+      if (_expectedPacketSize == -1) {
+        if (_buffer.length < 4) {
+          // Not enough data for the length prefix. Wait for more.
+          return;
+        }
+        // Read the 4-byte length prefix
+        ByteData byteData = ByteData.view(Uint8List.fromList(_buffer).buffer);
+        _expectedPacketSize = byteData.getUint32(0, Endian.little);
+        _buffer = _buffer.sublist(4); // Consume the length prefix from buffer
+      }
+
+      // Waiting for packet body
+      if (_buffer.length < _expectedPacketSize) {
+        // Not enough data for the full packet. Wait for more.
+        return;
+      }
+
+      // We have a full packet. Extract it.
+      Uint8List packetData = Uint8List.fromList(_buffer.sublist(0, _expectedPacketSize));
+      
+      // Consume the packet from the buffer
+      _buffer = _buffer.sublist(_expectedPacketSize);
+      
+      // Save size for error logging before resetting
+      int processedPacketSize = _expectedPacketSize; 
+      
+      // Reset state for the next packet
+      _expectedPacketSize = -1;
+
+      // Process the Packet
+      // This is async, but the C side will block until _sendResponse
+      // is called, so we don't need a complex queue.
+      try {
+        Request request = _parseRequest(packetData);
+        String response = await handleRequest(request);
+        _sendResponse(response);
+      } catch (e) {
+        print("RequestServer: Error handling request (packet size: $processedPacketSize): $e");
+        // Send an error response so the C side doesn't hang
+        _sendResponse("ERROR: ${e.toString()}");
+      }
+      
+      // Loop again to see if another full packet is already in the buffer
     }
-    _stdoutBuffer.write(output);
-    Request request = _parseRequest( _stdoutBuffer.toString() );
-    if (isFinalChunk) {
-      _stdoutBuffer.clear();
-    }
-    String response = await handleRequest(request);
-    _sendResponse(response);
   }
 }
