@@ -6,10 +6,5 @@ apk update && apk add --no-cache \
     libstdc++ \
     libc6-compat
 
-# Use local install.sh if available, otherwise download
-if [ -f "/tmp/src/sdk/vs_code/install.sh" ]; then
-    echo "Using local install.sh"
-    sh /tmp/src/sdk/vs_code/install.sh --method=standalone --prefix=/usr/local
-else
-    curl -fsSL https://code-server.dev/install.sh | sh -s -- --method=standalone --prefix=/usr/local
-fi
+echo "Using local install_vs_code.sh"
+sh /tmp/src/sdk/vs_code/install_vs_code.sh --method=standalone --prefix=/usr/local
