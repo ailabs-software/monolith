@@ -32,14 +32,14 @@ RUN /tmp/src/commands/build.sh
 RUN /tmp/src/frames/build.sh
 # build userland sdk
 RUN mkdir /opt/monolith/userland/sdk/
-RUN /tmp/src/sdk/trusted_commands/build.sh
 RUN /tmp/src/sdk/node_js/build.sh
 RUN /tmp/src/sdk/bash/build.sh
 RUN /tmp/src/sdk/vs_code/build.sh
 RUN /tmp/src/sdk/ailabs/build.sh
-
 # Make all files in userland accessible as read only standard access
 RUN /opt/monolith/core/dart_sdk/bin/dartaotruntime /opt/monolith/core/bin/set_access.aot "**" readable
+# build trusted commands MUST run *after* setting access so their access is not affected
+RUN /tmp/src/sdk/trusted_commands/build.sh
 
 # clean up -- TODO remove source from final image FFS
 RUN rm -rf /tmp/src && \
