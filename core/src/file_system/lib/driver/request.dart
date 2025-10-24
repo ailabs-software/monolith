@@ -1,5 +1,6 @@
 import "dart:convert";
 import "dart:io";
+import "dart:typed_data";
 import "package:common/util.dart";
 
 /** @fileoverview Manages the Dart side of the request.c protocol

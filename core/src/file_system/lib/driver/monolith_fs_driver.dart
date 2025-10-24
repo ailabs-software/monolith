@@ -1,5 +1,6 @@
 import "dart:io";
 import "dart:convert";
+import "dart:typed_data";
 import "package:file_system/driver/request.dart";
 import "package:file_system/driver/file_system.dart";
 
@@ -12,7 +13,7 @@ class MonolithFSDriver
   // Sort of middleware code between our file system and Dart
   Future<Object> _handleRequest(Request request) async
   {
-    //print("file system op: ${request.type} ${request.path} ${request.xParam} ${request.yParam} ${request.stringParam}");
+    //print("file system op: ${request.type} ${request.path} ${request.xParam} ${request.yParam} ${request.dataParam}");
     switch (request.type)
     {
       case "entity_type":
@@ -58,7 +59,7 @@ class MonolithFSDriver
         bool success = await _fileSystem.rmdir(request.path);
         return success ? "1" : "0";
       case "rename":
-        String newFileName = utf8.decode(request.stringParam);
+        String newFileName = utf8.decode(request.dataParam);
         await _fileSystem.rename(request.path, newFileName);
         return "1"; // always successful
       case "truncate":
