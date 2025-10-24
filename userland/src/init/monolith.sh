@@ -14,6 +14,9 @@ cp -r /usr/lib/* /opt/monolith/userland/usr/lib/
 cp /usr/bin/node /opt/monolith/userland/usr/bin/node
 /opt/monolith/core/dart_sdk/bin/dartaotruntime /opt/monolith/core/bin/set_access.aot "/usr/**" readable
 /opt/monolith/core/dart_sdk/bin/dartaotruntime /opt/monolith/core/bin/set_access.aot "/system/bin/**" readable
+# add resolv.conf for networking
+mkdir /opt/monolith/userland/etc/
+cp /etc/resolv.conf /opt/monolith/userland/etc/resolv.conf
 
 # monolith running inside userland chroot under standard access
 # start the first userland process with standard access

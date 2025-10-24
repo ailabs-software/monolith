@@ -39,6 +39,46 @@ function $print(string)
   updateDisplay();
 }
 
+/**
+ * Handles raw command output, processing control characters
+ * like \n, \r, and \b for progress bars and live updates.
+ */
+function $writeOutput(string)
+{
+  for (let i = 0; i < string.length; i++) {
+    const char = string[i];
+
+    if (char === '\n') { // Newline (LF)
+      // Commit the current line to final content
+      consoleContentFinal += consoleContentWorking + "\n";
+      consoleContentWorking = "";
+      consoleContentWorkingIndex = 0;
+    }
+    else if (char === '\r') { // Carriage Return (CR)
+      // Move cursor to the start of the current working line
+      consoleContentWorkingIndex = 0;
+    }
+    else if (char === '\b') { // Backspace (BS)
+      // Move cursor left and delete the character *before* it
+      if (consoleContentWorkingIndex > 0) {
+        const before = consoleContentWorking.slice(0, consoleContentWorkingIndex - 1);
+        const after = consoleContentWorking.slice(consoleContentWorkingIndex);
+        consoleContentWorking = before + after;
+        consoleContentWorkingIndex--;
+      }
+    }
+    else { // Printable character
+      // Overwrite the character at the current cursor position
+      const before = consoleContentWorking.slice(0, consoleContentWorkingIndex);
+      const after = consoleContentWorking.slice(consoleContentWorkingIndex + 1); 
+      consoleContentWorking = before + char + after;
+      consoleContentWorkingIndex++;
+    }
+  }
+  
+  updateDisplay(); // Update display once at the end of the string
+}
+
 function resetCursorWithCurrentWorking()
 {
   consoleContentWorkingIndex = consoleContentWorking.length;
@@ -66,7 +106,6 @@ function clampContenWorkingIndex()
 
 function handleDeleteOrBackspace(offset)
 {
-  console.log(consoleContentWorking.slice(0, consoleContentWorkingIndex + offset), consoleContentWorking.slice(consoleContentWorkingIndex + offset + 1));
   consoleContentWorking = consoleContentWorking.slice(0, consoleContentWorkingIndex + offset) + consoleContentWorking.slice(consoleContentWorkingIndex + offset + 1);
   consoleContentWorkingIndex += offset;
   clampContenWorkingIndex();
@@ -144,8 +183,7 @@ async function handleEnter()
       updateDisplay();
     }
     else if (response.output != null) {
-      $print(response.output);
-      finalise();
+      $writeOutput(response.output);
     }
   }
 

@@ -60,7 +60,7 @@ ENV DART_AOT_RUNTIME="$DART_SDK_PATH/bin/dartaotruntime"
 COPY --from=build_stage /opt/monolith /opt/monolith
 
 # Install runtime dependencies only
-RUN apk add --no-cache fuse3-dev
+RUN apk add --no-cache fuse3-dev util-linux
 
 # Copy in init script
 COPY init.sh "$CORE_PATH/init.sh"

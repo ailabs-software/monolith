@@ -46,7 +46,7 @@ abstract class FileSystem
 
   Future<bool> rmdir(String path);
 
-  Future<void> rename(String path, newPath);
+  Future<void> rename(String path, String newPath);
 
   Future<void> truncate(String path, int size);
 }
@@ -198,11 +198,30 @@ class MirrorFileSystem extends FileSystem
   }
 
   @override
-  Future<void> rename(String path, newPath)
+  Future<void> rename(String path, String newPath) async
   {
     path = _translatePath(path);
     newPath = _translatePath(newPath);
-    return new File(path).rename(newPath);
+
+    // Check what type of entity we're dealing with
+    final entityType = await FileSystemEntity.type(path);
+
+    switch (entityType)
+    {
+      case FileSystemEntityType.file:
+        await new File(path).rename(newPath);
+        break;
+      case FileSystemEntityType.directory:
+        await new Directory(path).rename(newPath);
+        break;
+      case FileSystemEntityType.link:
+        await new Link(path).rename(newPath);
+        break;
+      case FileSystemEntityType.notFound:
+        throw new FileSystemException("Entity not found", path);
+      default:
+        throw new FileSystemException("Unsupported entity type: $entityType", path);
+    }
   }
 
   @override

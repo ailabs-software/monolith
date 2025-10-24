@@ -1,7 +1,8 @@
 #!/bin/sh
 
 # Function to setup proc filesystem inside a chroot directory  -- needed to execute dart vm for getting memory address space layout
-setup_proc_dev_filesystem() {
+setup_proc_dev_filesystem()
+{
   local mount_point="$1"
 
   # Create proc directory inside the mount point
@@ -13,10 +14,17 @@ setup_proc_dev_filesystem() {
   # Mount dev file system TODO check this is secure, not a hole. Use mknod instead with select devices.
   mkdir -p "$mount_point/dev"
   mount --bind /dev "$mount_point/dev"
+
+  # Setup others required for networking
+  mkdir -p "$mount_point/sys"
+  mount --rbind /sys /opt/monolith/userland/sys/
+  mkdir -p "$mount_point/run"
+  mount --rbind /run /opt/monolith/userland/run/
 }
 
 # Function to setup a mount point with the specified access level
-setup_mount_point() {
+setup_mount_point()
+{
   local access_level="$1"
   local mount_point="/mnt/${access_level}_access"
   
