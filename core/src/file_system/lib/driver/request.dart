@@ -97,7 +97,8 @@ class RequestServer
         yParam: yParam,
         dataParam: dataParam,
       );
-    } catch (e) {
+    }
+    catch (e) {
       print("RequestServer: Failed to parse binary packet: $e");
       rethrow;
     }
@@ -115,7 +116,7 @@ class RequestServer
       throw new Exception("RequestServer: Response must be a String or Uint8List, but got ${data.runtimeType}");
     }
 
-    ByteData lengthData = ByteData(4);
+    ByteData lengthData = new ByteData(4);
     lengthData.setUint32(0, responseBytes.length, Endian.little);
 
     // Send length prefix + data
@@ -138,7 +139,7 @@ class RequestServer
           return;
         }
         // Read the 4-byte length prefix
-        ByteData byteData = ByteData.view(Uint8List.fromList(_buffer).buffer);
+        ByteData byteData = new ByteData.view(Uint8List.fromList(_buffer).buffer);
         _expectedPacketSize = byteData.getUint32(0, Endian.little);
         _buffer = _buffer.sublist(4); // Consume the length prefix from buffer
       }
@@ -150,7 +151,7 @@ class RequestServer
       }
 
       // We have a full packet. Extract it.
-      Uint8List packetData = Uint8List.fromList(_buffer.sublist(0, _expectedPacketSize));
+      Uint8List packetData = new Uint8List.fromList(_buffer.sublist(0, _expectedPacketSize));
       
       // Consume the packet from the buffer
       _buffer = _buffer.sublist(_expectedPacketSize);
