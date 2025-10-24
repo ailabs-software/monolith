@@ -18,6 +18,7 @@ class ExecuteAs
   {
     String workingDirectory = environment["CWD"] ?? "/";
 
+    // trusted commands run outside chroot, but are read from the user path's path for privilege level -- enforcing access to begin with to that command
     String mountPointForPrivilegeLevel = _getMountPointFromPrivilegeLevel(privilege);
 
     // if trusted executable, run outside chroot
