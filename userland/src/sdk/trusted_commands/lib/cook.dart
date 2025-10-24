@@ -8,10 +8,7 @@ import "package:trusted_commands/trusted_command_wrapper.dart";
 
 enum _CookCommand
 {
-  assets,
-  compile,
-  dart,
-  generate
+  any // TODO wire up
 }
 
 class _CookWrapper extends TrustedCommandWrapper<_CookCommand>
@@ -27,7 +24,7 @@ class _CookWrapper extends TrustedCommandWrapper<_CookCommand>
     String cwd = Platform.environment["CWD"]!;
     return ProcessInformation(
       executable: "/opt/monolith/core/bin/monolith_chroot",
-      arguments: ["/mnt/root_access", cwd, "/sdk/ailabs/bin/cook_internal", command.name, ...args],
+      arguments: ["/mnt/root_access", cwd, "/sdk/ailabs/bin/cook_internal", ...args],
       environment: {
         ...Platform.environment,
         // path to "dart"
@@ -41,5 +38,5 @@ class _CookWrapper extends TrustedCommandWrapper<_CookCommand>
 
 void main(List<String> args) async
 {
-  await new _CookWrapper().main(args);
+  await new _CookWrapper().main(["any", ...args]);
 }
