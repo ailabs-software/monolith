@@ -17,7 +17,7 @@ class Request
   final String path;
   final int xParam;
   final int yParam;
-  final String stringParam;
+  final Uint8List dataParam;
 
   Request({
     required String this.type,
@@ -25,12 +25,12 @@ class Request
     // parameters (may be zero or empty if not used)
     required int this.xParam,
     required int this.yParam,
-    required String this.stringParam // must appear last so : separator can appear with data
+    required Uint8List this.dataParam // must appear last so : separator can appear with data
   });
 }
 
 /** Note: Return value *must not* contain newlines! Escape data first */
-typedef Future<String> RequestCallback(Request request);
+typedef Future<Object> RequestCallback(Request request);
 
 class RequestServer
 {
@@ -61,7 +61,7 @@ class RequestServer
 
   Request _parseRequest(Uint8List packetData)
   {
-    List<int> byteData = packetData.buffer
+    ByteData byteData = packetData.buffer
         .asByteData(packetData.offsetInBytes, packetData.lengthInBytes);
     int offset = 0;
 
@@ -85,16 +85,16 @@ class RequestServer
       offset += 4;
 
       // Read stringParam
-      int stringParamLen = byteData.getUint32(offset, Endian.little);
+      int dataParamLen = byteData.getUint32(offset, Endian.little);
       offset += 4;
-      String stringParam = utf8.decode(packetData.sublist(offset, offset + stringParamLen));
+      Uint8List dataParam = packetData.sublist(offset, offset + dataParamLen);
 
       return Request(
         type: type,
         path: path,
         xParam: xParam,
         yParam: yParam,
-        stringParam: stringParam,
+        dataParam: dataParam,
       );
     } catch (e) {
       print("RequestServer: Failed to parse binary packet: $e");
@@ -102,21 +102,25 @@ class RequestServer
     }
   }
 
-  Future<void> _sendResponse(String data) async
+  Future<void> _sendResponse(Object data) async
   {
-    // No more newline check, binary protocol can handle any data.
-    List<int> responseBytes = utf8.encode(data);
-    ByteData lengthData = ByteData(4);
+    Uint8List responseBytes;
 
-    // Write length prefix (little-endian)
+    if (data is String) {
+      responseBytes = utf8.encode(data);
+    } else if (data is Uint8List) {
+      responseBytes = data;
+    } else {
+      throw new Exception("RequestServer: Response must be a String or Uint8List, but got ${data.runtimeType}");
+    }
+
+    ByteData lengthData = ByteData(4);
     lengthData.setUint32(0, responseBytes.length, Endian.little);
 
-    // Send length prefix
+    // Send length prefix + data
     process.stdin.add(lengthData.buffer.asUint8List());
-    // Send data
     process.stdin.add(responseBytes);
     
-    // Flush to ensure C process receives it
     await process.stdin.flush();
   }
 
@@ -161,7 +165,7 @@ class RequestServer
       // is called, so we don't need a complex queue.
       try {
         Request request = _parseRequest(packetData);
-        String response = await handleRequest(request);
+        Object response = await handleRequest(request);
         _sendResponse(response);
       } catch (e) {
         print("RequestServer: Error handling request (packet size: $processedPacketSize): $e");

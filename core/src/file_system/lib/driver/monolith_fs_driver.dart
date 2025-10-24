@@ -10,7 +10,7 @@ class MonolithFSDriver
   MonolithFSDriver(FileSystem this._fileSystem);
 
   // Sort of middleware code between our file system and Dart
-  Future<String> _handleRequest(Request request) async
+  Future<Object> _handleRequest(Request request) async
   {
     //print("file system op: ${request.type} ${request.path} ${request.xParam} ${request.yParam} ${request.stringParam}");
     switch (request.type)
@@ -28,22 +28,21 @@ class MonolithFSDriver
         return exists ? "1" : "0";
       case "read_dir":
         List<String> list = await _fileSystem.readDir(request.path);
-        return json.encode(list);
+        return list.join("\n");
       case "file_size":
         int fileSize = await _fileSystem.fileSize(request.path);
         return fileSize.toString();
       case "read_file":
         int offset = request.xParam;
         int size = request.yParam;
-        String data = await _fileSystem.readFile(request.path, offset, size);
-        data = json.encode(data); // quick & dirty solution to escape newlines, which separate request.c commands
+        Uint8List data = await _fileSystem.readFile(request.path, offset, size);
         return data;
       case "file_writable":
         bool writable = await _fileSystem.fileWritable(request.path);
         return writable ? "1" : "0";
       case "write_file":
         int offset = request.xParam;
-        String data = json.decode(request.stringParam);
+        Uint8List data = request.dataParam;
         bool success = await _fileSystem.writeFile(request.path, offset, data);
         return success ? "1" : "0";
       case "create_file":
@@ -59,7 +58,7 @@ class MonolithFSDriver
         bool success = await _fileSystem.rmdir(request.path);
         return success ? "1" : "0";
       case "rename":
-        String newFileName = request.stringParam;
+        String newFileName = utf8.decode(request.stringParam);
         await _fileSystem.rename(request.path, newFileName);
         return "1"; // always successful
       case "truncate":

@@ -18,8 +18,6 @@
 #include <assert.h>
 #include <fuse.h>
 #include "request.h"
-#include "cjson/cJSON.h"
-#include "base64.h"
 
 #ifndef RENAME_NOREPLACE
 #define RENAME_NOREPLACE (1 << 0)
@@ -83,7 +81,8 @@ static int monolith_fs_getattr(const char *path, struct stat *stbuf, struct fuse
   }
   else if (entity_type == 1) {
     // 1 is a file
-    stbuf->st_mode = S_IFREG | ( check_file_writable(path) ? 0755 : 0555 ); // TODO -- makes all files executable (not ideal -- should pass through underlying permission)
+    // TODO -- makes all files executable (not ideal -- should pass through underlying permission)
+    stbuf->st_mode = S_IFREG | ( check_file_writable(path) ? 0755 : 0555 );
     stbuf->st_nlink = 1;
     stbuf->st_size = get_file_size(path);
     return 0;
@@ -116,26 +115,17 @@ static int monolith_fs_readdir(const char *path, void *buf, fuse_fill_dir_t fill
   }
 
   char *response = send_request("read_dir", path);
-  cJSON *array = cJSON_Parse(response);
-  free(response);
 
-  int count = cJSON_GetArraySize(array);
-
-  // standard
   filler(buf, ".", NULL, 0, 0);
   filler(buf, "..", NULL, 0, 0);
 
-  // add each filename from response
-  for (int i = 0; i < count; i++)
-  {
-    cJSON *item = cJSON_GetArrayItem(array, i);
-    char *filename = strdup(item->valuestring);
-    filler(buf, filename, NULL, 0, 0);
-    free(filename);
+  char *token;
+  char *rest = response;
+  while ((token = strtok_r(rest, "\n", &rest))) {
+    filler(buf, token, NULL, 0, 0);
   }
 
-  cJSON_Delete(array);
-
+  free(response);
   return 0;
 }
 
@@ -157,62 +147,20 @@ static int monolith_fs_open(const char *path, struct fuse_file_info *fi)
 
 static int monolith_fs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
 {
-  size_t len;
   (void) fi;
 
   if ( !check_exists(path) ) {
     return -ENOENT;
   }
 
-  len = (size_t)get_file_size(path);
+  ssize_t bytes_read = send_request_for_binary("read_file", path, (int)offset, (int)size, "", buf, size);
 
-  if (offset < len) {
-    if (offset + size > len) {
-      size = len - offset;
-    }
-
-    // Get the base64-encoded response from the backend
-    char* response = send_request_with("read_file", path, offset, size, "");
-
-    // Parse the JSON response to get the base64-encoded data
-    cJSON *json_data = cJSON_Parse(response);
-    if (!json_data) {
-      free(response);
-      return -EIO;
-    }
-
-    // Extract the base64-encoded string
-    const char* base64_data = cJSON_GetStringValue(json_data);
-    if (!base64_data) {
-      cJSON_Delete(json_data);
-      free(response);
-      return -EIO;
-    }
-
-    // Decode the base64 data
-    size_t decoded_length;
-    unsigned char* decoded_data = base64_decode(base64_data, strlen(base64_data), &decoded_length);
-
-    if (!decoded_data || decoded_length < size) {
-      free(decoded_data);
-      cJSON_Delete(json_data);
-      free(response);
-      return -EIO;
-    }
-
-    // Copy the decoded binary data to the buffer
-    memcpy(buf, decoded_data, size);
-
-    // Clean up
-    free(decoded_data);
-    cJSON_Delete(json_data);
-    free(response);
+  if (bytes_read < 0) {
+    return -EIO;
   }
-  else {
-    size = 0;
-  }
-
-  return size;
+  
+  // The number of bytes read is returned directly.
+  return (int)bytes_read;
 }
 
 static int monolith_fs_write(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
@@ -223,52 +171,19 @@ static int monolith_fs_write(const char *path, const char *buf, size_t size, off
   if ( !check_exists(path) ) {
     return -ENOENT;
   }
+  
+  // We send the raw FUSE buffer 'buf' directly.
+  char *response = send_binary_request("write_file", path, (int)offset, 0, buf, (uint32_t)size);
 
-  // Calculate base64 encoded length and allocate buffer
-  size_t encoded_len = ((size + 2) / 3) * 4;
-  uint8_t *encoded_buf = malloc(encoded_len + 1); // +1 for null terminator
-  if (!encoded_buf) {
-    return -ENOMEM;
-  }
-
-  // Encode binary data to base64
-  size_t actual_len;
-  int encode_result = base64_encode(encoded_buf, encoded_len, &actual_len,
-                                   (const uint8_t*)buf, size);
-  if (encode_result != 0) {
-    free(encoded_buf);
-    return -EIO;
-  }
-
-  // Null-terminate the encoded string
-  encoded_buf[actual_len] = '\0';
-
-  // Prepare buffer as a JSON string for transmission
-  // Using cJSON to encode the base64 string safely
-  cJSON *data = cJSON_CreateString((const char*)encoded_buf);
-  char *payload = cJSON_PrintUnformatted(data);
-
-  // Send the write request
-  char *response = send_request_with("write_file", path, offset, 0, payload);
-
-  // Clean up
-  free(encoded_buf);
-  cJSON_Delete(data);
-  free(payload);
-
-  // Interpret response: if success, response should be the number of bytes actually written
   bool success = strcmp(response, "1") == 0;
   free(response);
 
-  int written = 0;
   if (success) {
-    written = (int)size;
+    return (int)size;
   }
   else {
     return -EIO;
   }
-
-  return written;
 }
 
 
@@ -373,7 +288,8 @@ static int monolith_fs_rename(const char *from, const char *to, unsigned int fla
       return -ENOENT;
     }
     // Send exchange request to backend
-    char *response = send_request_with("rename_exchange", from, 0, 0, to); // TODO IMPLEMENT rename_exchange on dart side
+    // TODO IMPLEMENT rename_exchange on dart side
+    char *response = send_string_request("rename_exchange", from, 0, 0, to);
     bool success = strcmp(response, "1") == 0;
     free(response);
 
@@ -386,7 +302,7 @@ static int monolith_fs_rename(const char *from, const char *to, unsigned int fla
   }
 
   // Standard rename operation
-  char *response = send_request_with("rename", from, 0, 0, to);
+  char *response = send_string_request("rename", from, 0, 0, to);
   bool success = strcmp(response, "1") == 0;
   free(response);
 
@@ -436,7 +352,7 @@ static int monolith_fs_truncate(const char *path, off_t size, struct fuse_file_i
   }
 
   // Send request to truncate the file
-  char *response = send_request_with("truncate", path, size, 0, "");
+  char *response = send_string_request("truncate", path, (int)size, 0, "");
   bool success = strcmp(response, "1") == 0;
   free(response);
 
