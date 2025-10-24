@@ -12,6 +12,11 @@ echo "http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositor
 apk update
 apk add --no-cache git docker-cli docker-cli-compose
 
+# install gnu tar
+apk add tar
+ln /usr/bin/tar /opt/monolith/userland/usr/bin/tar
+chmod +x /opt/monolith/userland/usr/bin/tar
+
 # build trusted commands
 cd /tmp/src/sdk/trusted_commands/
 /opt/monolith/core/dart_sdk/bin/dart pub get

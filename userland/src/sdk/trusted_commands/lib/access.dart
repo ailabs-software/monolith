@@ -6,17 +6,20 @@ import "package:common/entity_attributes_stores.dart";
 
 /** @fileoverview Tool used to set access level of files from init */
 
+// TODO is largely duplicate with set_access.dart in core
+
 Future<void> _handleSetAccess(List<String> entityPaths, String accessLevelArgument) async
 {
   EntityAccessLevel accessLevel = EntityAccessLevel.values.byName(accessLevelArgument);
   stdout.write("Updating ${entityPaths.length} entities to ${accessLevel.name} access... ");
   await stdout.flush();
-  stdout.writeln("done");
-  await stdout.flush();
+  DateTime started = new DateTime.now();
   for (String entityPath in entityPaths)
   {
     await entityAccessLevelStore.set(entityPath, accessLevel.name);
   }
+  stdout.writeln("done after ${new DateTime.now().difference(started).inMilliseconds}ms");
+  await stdout.flush();
 }
 
 Future<void> _handleShowAccess(List<String> entityPaths) async

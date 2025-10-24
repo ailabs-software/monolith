@@ -25,11 +25,25 @@ class _DockerWrapper extends TrustedCommandWrapper<_DockerCommand>
     return _DockerCommand.values;
   }
 
+  List<String> _getFinalArgs(_DockerCommand command, List<String> args)
+  {
+    if (command == _DockerCommand.image &&
+        args.firstOrNull == "save") {
+      for (int i = 0; i < args.length; i++)
+      {
+        if (args[i] == "-o") {
+          args[i + 1] = safeJoinPaths(file_system_source_path, args[i + 1]);
+        }
+      }
+    }
+    return [getCommandNameFromEnum(command), ...args];
+  }
+
   ProcessInformation getProcessInformation(_DockerCommand command, List<String> args)
   {
     return ProcessInformation(
       executable: "/usr/bin/docker",
-      arguments: [getCommandNameFromEnum(command), ...args],
+      arguments: _getFinalArgs(command, args),
       environment: {
         ...Platform.environment,
         "TMPDIR": safeJoinPaths(file_system_source_path, "/tmp"),
