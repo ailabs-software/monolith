@@ -10,7 +10,7 @@ class MonolithFSDriver
   MonolithFSDriver(FileSystem this._fileSystem);
 
   // Sort of middleware code between our file system and Dart
-  Future<String> _handleRequest(Request request) async
+  Future<String> _handleRequestInternal(Request request) async
   {
     //print("file system op: ${request.type} ${request.path} ${request.xParam} ${request.yParam} ${request.stringParam}");
     switch (request.type)
@@ -67,6 +67,20 @@ class MonolithFSDriver
         return "1"; // always successful
       default:
         throw new Exception("Bad file system operation: ${request.type}");
+    }
+  }
+
+  Future<String> _handleRequest(Request request) async
+  {
+    try {
+      return await _handleRequestInternal(request);
+    }
+    catch (e, s) {
+      print("file system op failed: ${request.type} ${request.path} ${request.xParam} ${request.yParam} ${request.stringParam.length}");
+      print("error was:");
+      print(e);
+      print(s);
+      rethrow;
     }
   }
 
