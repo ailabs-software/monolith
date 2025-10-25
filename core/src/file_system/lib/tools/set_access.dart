@@ -11,7 +11,7 @@ import "package:common/entity_attributes_stores.dart";
 Future<void> main(List<String> arguments) async
 {
   String entityArgument = arguments[0];
-  List<String> entityPaths = await getEntityPaths(entityArgument);
+  List<String> entityPaths = await getEntityPathsFromExpression(entityArgument);
   EntityAccessLevel accessLevel = EntityAccessLevel.values.byName(arguments[1]);
   stdout.writeln("set_access(${entityArgument}): Matching entities...");
   await stdout.flush();

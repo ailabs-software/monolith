@@ -48,7 +48,7 @@ Future<void> main(List<String> arguments) async
     _printHelpAndExit();
   }
   String command = arguments[0];
-  List<String> entityPaths = await getEntityPaths(arguments[1]);
+  List<String> entityPaths = await getEntityPathsFromExpression(arguments[1]);
   switch (command)
   {
     case "set":

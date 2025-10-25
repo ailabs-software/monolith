@@ -3,6 +3,7 @@ import "package:path/path.dart" as path_util;
 import "package:glob/glob.dart";
 import "package:glob/list_local_fs.dart";
 import "package:common/constants/file_system_source_path.dart";
+import "package:common/constants/special_entity_path_segments.dart";
 
 // string helper to limit splitting to first N (count)
 List<String> splitN(String string, Pattern pattern, int count)
@@ -49,17 +50,18 @@ String getCanonicalPath(String path)
   return Uri.parse(".").resolveUri( new Uri.file(path) ).toFilePath();
 }
 
-Future< List<String> > getEntityPaths(String entityArgument) async
+// the path contains special segment
+bool pathContainsSpecialSegment(String path)
 {
-  return
-    ( new Glob( (file_system_source_path + "/" + entityArgument).replaceAll("//", "/") ).list() )
-    .where( (FileSystemEntity e) => e is File )
-    .map( (FileSystemEntity e) => ("/" + e.path.substring(file_system_source_path.length).replaceAll("//", "/") ) )
-    .toList();
+  return path.split("/").any(special_entity_path_segments.contains);
 }
 
-// the path is hidden
-bool pathIsHidden(String path)
+Future< List<String> > getEntityPathsFromExpression(String expression) async
 {
-  return path.split("/").any( (String e) => e.startsWith(".") );
+  return
+    ( new Glob( (file_system_source_path + "/" + expression).replaceAll("//", "/") ).list() )
+    .where( (FileSystemEntity e) => e is File )
+    .where( (FileSystemEntity e) => !pathContainsSpecialSegment(e.path) ) // no special segment containing matched
+    .map( (FileSystemEntity e) => ("/" + e.path.substring(file_system_source_path.length).replaceAll("//", "/") ) )
+    .toList();
 }
