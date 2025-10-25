@@ -21,7 +21,8 @@ RUN mkdir -p /opt/monolith/userland/lib/ && \
 
 # hardlink dart sdk into userland
 RUN mkdir -p /opt/monolith/userland/system/dart_sdk/bin/ && \
-    ln /opt/monolith/core/dart_sdk/bin/dartaotruntime /opt/monolith/userland/system/dart_sdk/bin/dartaotruntime
+    ln /opt/monolith/core/dart_sdk/bin/dartaotruntime /opt/monolith/userland/system/dart_sdk/bin/dartaotruntime && \
+    ln /opt/monolith/core/dart_sdk/bin/dart /opt/monolith/userland/system/dart_sdk/bin/dart
 
 # /tmp is needed in userland chroot
 RUN mkdir /opt/monolith/userland/tmp

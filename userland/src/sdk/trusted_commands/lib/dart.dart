@@ -41,7 +41,7 @@ class _DartWrapper extends TrustedCommandWrapper<_DartCommand>
     String cwd = Platform.environment["CWD"]!;
     return ProcessInformation(
       executable: "/opt/monolith/core/bin/monolith_chroot",
-      arguments: ["/mnt/root_access", cwd, "/dart_sdk/bin/dart", ..._getTranslatedArguments(command, args)],
+      arguments: ["/mnt/root_access", cwd, "/system/dart_sdk/bin/dart", ..._getTranslatedArguments(command, args)],
       environment: {
         ...Platform.environment,
         // dart pub executes "chmod", which resides in /usr/bin/

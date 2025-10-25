@@ -29,7 +29,7 @@ class _CookWrapper extends TrustedCommandWrapper<_CookCommand>
         ...Platform.environment,
         // path to "dart"
         // dart compile executes "chmod +x", which resides in /usr/bin/
-        "PATH": "/dart_sdk/bin/:/usr/bin/"
+        "PATH": "/system/dart_sdk/bin/:/usr/bin/"
       },
       workingDirectory: Directory.current.path
     );
