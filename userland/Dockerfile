@@ -1,6 +1,7 @@
 FROM monolith_core:latest
 
 # build userland
+ARG TARGETARCH
 
 COPY src /tmp/src
 COPY --from=common . /tmp/src/common/
