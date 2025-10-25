@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# stop on error
+set -e
+
 # Function to setup proc filesystem inside a chroot directory  -- needed to execute dart vm for getting memory address space layout
 setup_proc_dev_filesystem()
 {
@@ -18,14 +21,14 @@ setup_proc_dev_filesystem()
   # Setup others required for networking
   mkdir -p "$mount_point/sys"
   mount --rbind /sys "$mount_point/sys/"
-  mount -o remount,ro "$mount_point/sys/"
+  mount -o remount,rbind,ro "$mount_point/sys/"
   mkdir -p "$mount_point/run"
   mount --rbind /run "$mount_point/run/"
-  mount -o remount,ro "$mount_point/run/"
+  mount -o remount,rbind,ro "$mount_point/run/"
   # Mount dart sdk
   mkdir -p "$mount_point/system/dart_sdk"
   mount --bind /opt/monolith/core/dart_sdk "$mount_point/system/dart_sdk/"
-  mount -o remount,ro "$mount_point/system/dart_sdk/"
+  mount -o remount,bind,ro "$mount_point/system/dart_sdk/"
 }
 
 # Function to setup a mount point with the specified access level
