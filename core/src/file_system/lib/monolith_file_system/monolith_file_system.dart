@@ -5,6 +5,7 @@ import "dart:typed_data";
 import "package:meta/meta.dart";
 import "package:file_system/driver/file_system.dart";
 import "package:common/constants/file_system_source_path.dart";
+import "package:common/constants/special_entity_path_segments.dart";
 import "package:common/access_types.dart";
 import "package:common/util.dart";
 import "package:common/entity_attributes_stores.dart";
@@ -58,7 +59,7 @@ class MonolithFileSystem extends MirrorFileSystem
   Future< List<String> > readDir(String path) async
   {
     Iterable<String> entities = await super.readDir(path);
-    entities = entities.where( (String e) => e != ".monolith" );
+    entities = entities.where( (String e) => !special_entity_path_segments.contains(e) );
     return await _getVisibleEntities(path, entities).toList();
   }
 
