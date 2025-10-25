@@ -57,3 +57,9 @@ Future< List<String> > getEntityPaths(String entityArgument) async
     .map( (FileSystemEntity e) => ("/" + e.path.substring(file_system_source_path.length).replaceAll("//", "/") ) )
     .toList();
 }
+
+// the path is hidden
+bool pathIsHidden(String path)
+{
+  return path.split("/").any( (String e) => e.startsWith(".") );
+}

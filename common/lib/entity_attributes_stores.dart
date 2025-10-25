@@ -68,6 +68,16 @@ class EntityAttributesStore
     if (entityPath == "/") {
       return;
     }
+
+    // avoid entities within a .monolith directory
+    if ( path_util.split(entityPath).contains(".monolith") ) {
+      throw new Exception("Cannot set an entity attribute for an entity which is .monolith or within.");
+    }
+    // avoid entities within hidden directories
+    if ( pathIsHidden( path_util.dirname(entityPath) ) ) {
+      throw new Exception("Cannot set entity attribute for an entity within a hidden directory: \"${entityPath}\".");
+    }
+
     // now look up the store file
     File storeFile = _getStoreFile(entityPath);
     return _mutex.protect( () async {
